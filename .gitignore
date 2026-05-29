@@ -1,0 +1,43 @@
+# Ambiente
+.env
+*.env.local
+
+# Clients — credenciais de clientes nunca entram no git
+clients/*
+!clients/.gitignore
+
+# DuckDB
+*.duckdb
+*.duckdb.wal
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Go
+collector/bin/
+*.exe
+
+# Node (para quando o React chegar)
+node_modules/
+.next/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

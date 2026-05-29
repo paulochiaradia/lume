@@ -1,0 +1,104 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: lume_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  collector:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile
+    container_name: lume_collector
+    restart: unless-stopped
+    environment:
+      POSTGRES_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      ENV: ${ENV}
+    volumes:
+      - ./clients:/app/clients
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  engine:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    container_name: lume_engine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      DUCKDB_PATH: /app/data/duckdb
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ENV: ${ENV}
+    volumes:
+      - duckdb_data:/app/data/duckdb
+      - ./clients:/app/clients
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  streamlit:
+    build:
+      context: ./app/streamlit
+      dockerfile: Dockerfile
+    container_name: lume_streamlit
+    restart: unless-stopped
+    environment:
+      API_URL: http://collector:8080
+      DUCKDB_PATH: /app/data/duckdb
+      ENV: ${ENV}
+    volumes:
+      - duckdb_data:/app/data/duckdb
+    depends_on:
+      - collector
+      - engine
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: lume_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_SERVER_ROOT_URL: http://localhost/grafana
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infra/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - postgres
+
+  nginx:
+    image: nginx:alpine
+    container_name: lume_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - streamlit
+      - collector
+      - grafana
+
+volumes:
+  postgres_data:
+  duckdb_data:
+  grafana_data:

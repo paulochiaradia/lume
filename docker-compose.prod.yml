@@ -1,0 +1,19 @@
+services:
+
+  postgres:
+    restart: always
+
+  collector:
+    restart: always
+
+  engine:
+    restart: always
+
+  streamlit:
+    restart: always
+
+  grafana:
+    restart: always
+
+  nginx:
+    restart: always
