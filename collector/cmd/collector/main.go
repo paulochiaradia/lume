@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
@@ -23,5 +24,7 @@ func main() {
 	log.Printf("aguardando implementação dos conectores...")
 
 	// Mantém o processo rodando — será substituído pelo scheduler
-	select {}
+	for {
+		time.Sleep(time.Hour)
+	}
 }
