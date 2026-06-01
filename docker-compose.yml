@@ -30,6 +30,7 @@ services:
       ENV: ${ENV}
     volumes:
       - ./clients:/app/clients
+      - ./infra/postgres/migrations:/app/migrations
     depends_on:
       postgres:
         condition: service_healthy

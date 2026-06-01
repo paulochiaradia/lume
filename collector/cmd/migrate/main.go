@@ -40,7 +40,7 @@ func main() {
 
 func runMigrations(conn *sql.DB) error {
 	// Busca todos os arquivos SQL da pasta de migrations
-	pattern := "../infra/postgres/migrations/*.sql"
+	pattern := "/app/migrations/*.sql"
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return fmt.Errorf("erro ao listar migrations: %w", err)
