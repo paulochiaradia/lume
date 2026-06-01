@@ -6,8 +6,8 @@ import "fmt"
 // Para adicionar um novo ERP: criar o arquivo e registrar aqui
 func Factory(cfg Config) (Connector, error) {
 	switch cfg.ERPType {
-	// case "csv":
-	// 	return NewCSVConnector(cfg), nil  ← será descomentado na próxima tarefa
+	case "csv":
+		return NewCSVConnector(cfg), nil
 	default:
 		return nil, fmt.Errorf("conector '%s' não implementado", cfg.ERPType)
 	}
