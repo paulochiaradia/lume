@@ -15,13 +15,23 @@ func parseFloat(s string) float64 {
 		return 0
 	}
 
-	// Remove separadores de milhar
-	s = strings.ReplaceAll(s, ".", "")
-	s = strings.ReplaceAll(s, ",", ".")
-
 	// Remove símbolo de moeda se existir
 	s = strings.ReplaceAll(s, "R$", "")
 	s = strings.TrimSpace(s)
+
+	// Detecta o formato — brasileiro (1.250,00) ou internacional (1250.00)
+	hasDot := strings.Contains(s, ".")
+	hasComma := strings.Contains(s, ",")
+
+	if hasComma && hasDot {
+		// Formato brasileiro: 1.250,00 → remove ponto, troca vírgula por ponto
+		s = strings.ReplaceAll(s, ".", "")
+		s = strings.ReplaceAll(s, ",", ".")
+	} else if hasComma && !hasDot {
+		// Formato com vírgula decimal: 1250,00 → troca vírgula por ponto
+		s = strings.ReplaceAll(s, ",", ".")
+	}
+	// Se só tem ponto: 1250.00 → usa como está
 
 	val, err := strconv.ParseFloat(s, 64)
 	if err != nil {

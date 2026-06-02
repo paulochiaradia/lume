@@ -1,0 +1,11 @@
+id,nome,categoria,subcategoria,unidade,custo,preco,ativo
+P001,Cimento CP-II 50kg,Argamassas,Cimento,SC,28.00,35.00,sim
+P002,Areia Media 20kg,Agregados,Areia,SC,8.00,12.00,sim
+P003,Brita 1 20kg,Agregados,Brita,SC,10.00,15.00,sim
+P004,Tijolo Ceramico 9cm,Alvenaria,Tijolos,UN,0.85,1.20,sim
+P005,Ferro 10mm 12m,Estrutural,Ferro,BR,42.00,55.00,sim
+P006,Telha Ceramica,Cobertura,Telhas,UN,2.50,3.80,sim
+P007,Tinta Latex 18L,Acabamento,Tintas,GL,65.00,89.00,sim
+P008,Rejunte 5kg,Acabamento,Rejunte,PCT,8.50,13.00,sim
+P009,Disco de Corte 4.5,Ferramentas,Discos,UN,4.50,8.00,sim
+P010,Rebolo Desbaste 4.5,Ferramentas,Rebolos,UN,6.00,10.50,sim

@@ -20,10 +20,15 @@ func main() {
 	fmt.Println("╚══════════════════════════════════════╝")
 
 	log.Printf("ambiente: %s", env)
-	log.Printf("collector iniciado com sucesso")
-	log.Printf("aguardando implementação dos conectores...")
 
-	// Mantém o processo rodando — será substituído pelo scheduler
+	// Em desenvolvimento roda o teste do pipeline
+	if env == "development" {
+		runPipelineTest()
+	}
+
+	log.Printf("collector iniciado com sucesso")
+	log.Printf("aguardando implementação do scheduler...")
+
 	for {
 		time.Sleep(time.Hour)
 	}

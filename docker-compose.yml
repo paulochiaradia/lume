@@ -31,6 +31,7 @@ services:
     volumes:
       - ./clients:/app/clients
       - ./infra/postgres/migrations:/app/migrations
+      - ./testdata:/app/testdata
     depends_on:
       postgres:
         condition: service_healthy
