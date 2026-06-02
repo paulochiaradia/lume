@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/joho/godotenv"
+	"github.com/paulochiaradia/lume/collector/internal/api"
 	"github.com/paulochiaradia/lume/collector/internal/db"
 	"github.com/paulochiaradia/lume/collector/internal/scheduler"
 )
@@ -26,7 +27,6 @@ func main() {
 
 	log.Printf("ambiente: %s", env)
 
-	// Carrega .env em desenvolvimento
 	if env != "production" {
 		godotenv.Load("../../.env")
 	}
@@ -43,19 +43,27 @@ func main() {
 		runPipelineTest()
 	}
 
-	// Inicia o scheduler
+	// Inicia o scheduler em background
 	s := scheduler.New(conn)
 	if err := s.Start(); err != nil {
 		log.Fatalf("erro ao iniciar scheduler: %v", err)
 	}
 	defer s.Stop()
 
+	// Inicia o servidor HTTP em background
+	server := api.New(conn)
+	go func() {
+		if err := server.Start(); err != nil {
+			log.Fatalf("erro no servidor HTTP: %v", err)
+		}
+	}()
+
 	log.Println("collector rodando — pressione Ctrl+C para parar")
 
-	// Aguarda sinal de encerramento
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	log.Println("encerrando collector...")
+	server.Stop()
 }

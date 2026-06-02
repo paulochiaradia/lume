@@ -26,7 +26,7 @@ services:
     container_name: lume_collector
     restart: unless-stopped
     environment:
-      POSTGRES_DSN: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POSTGRES_DSN: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       ENV: ${ENV}
     volumes:
       - ./clients:/app/clients
@@ -43,7 +43,7 @@ services:
     container_name: lume_engine
     restart: unless-stopped
     environment:
-      POSTGRES_DSN: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POSTGRES_DSN: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       DUCKDB_PATH: /app/data/duckdb
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ENV: ${ENV}
@@ -61,7 +61,7 @@ services:
     container_name: lume_streamlit
     restart: unless-stopped
     environment:
-      POSTGRES_DSN: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POSTGRES_DSN: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       DUCKDB_PATH: /app/data/duckdb
       ENV: ${ENV}
       PYTHONPATH: /engine
