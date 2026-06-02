@@ -91,7 +91,7 @@ func (s *Server) setupRouter() *chi.Mux {
 
 		// Rotas protegidas — exigem JWT válido
 		r.Group(func(r chi.Router) {
-			// r.Use(s.jwtMiddleware) ← será implementado na tarefa 2
+			r.Use(s.jwtMiddleware)
 			r.Use(strictRateLimiter)
 
 			// Home

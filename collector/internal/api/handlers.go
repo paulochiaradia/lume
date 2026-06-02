@@ -29,11 +29,6 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 // ── Placeholders — serão implementados nas próximas tarefas ──
-
-func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"message": "em implementação"})
-}
-
 func (s *Server) handleHomeKPIs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "em implementação"})
 }

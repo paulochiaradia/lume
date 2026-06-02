@@ -30,6 +30,17 @@ type ETLLog struct {
 	FinishedAt     *time.Time
 }
 
+// User representa um usuário do sistema
+type User struct {
+	ID           string
+	ClientID     string
+	Email        string
+	PasswordHash string
+	Role         string
+	Name         string
+	Active       bool
+}
+
 // ── Clients ──────────────────────────────────────────────────
 
 // GetActiveClients retorna todos os clientes ativos
@@ -139,4 +150,42 @@ func EnqueueJob(db *sql.DB, clientID, jobType string, payload []byte) error {
 		return fmt.Errorf("erro ao enfileirar job: %w", err)
 	}
 	return nil
+}
+
+// ── Users ─────────────────────────────────────────────────
+// GetUserByEmail busca um usuário pelo email
+func GetUserByEmail(db *sql.DB, email string) (*User, error) {
+	var u User
+	err := db.QueryRow(`
+		SELECT id, client_id, email, password_hash, role, name, active
+		FROM lume_system.users
+		WHERE email = $1 AND active = true
+	`, email).Scan(&u.ID, &u.ClientID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.Active)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("usuário não encontrado")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar usuário: %w", err)
+	}
+	return &u, nil
+}
+
+// GetClientByID busca um cliente pelo ID
+func GetClientByID(db *sql.DB, clientID string) (*Client, error) {
+	var c Client
+	err := db.QueryRow(`
+		SELECT id, client_key, name, segment, erp_type, erp_config, active
+		FROM lume_system.clients
+		WHERE id = $1
+	`, clientID).Scan(
+		&c.ID, &c.ClientKey, &c.Name,
+		&c.Segment, &c.ERPType, &c.ERPConfig, &c.Active,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("cliente não encontrado")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar cliente: %w", err)
+	}
+	return &c, nil
 }
