@@ -1,0 +1,1 @@
+- [ ] Corrigir formatação do insight da página de Vendas (quebra de linha no st.info)
