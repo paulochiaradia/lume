@@ -145,6 +145,62 @@ func (l *Loader) LoadProdutos(produtos []normalizer.Produto) (int, error) {
 	return count, nil
 }
 
+// LoadItensVenda faz upsert dos itens de venda no banco
+func (l *Loader) LoadItensVenda(itens []normalizer.ItemVenda) (int, error) {
+	if len(itens) == 0 {
+		return 0, nil
+	}
+
+	tx, err := l.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("erro ao iniciar transação: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(fmt.Sprintf(`
+		INSERT INTO %s.itens_venda
+			(venda_id, produto_key, descricao, quantidade, unidade,
+			 preco_unitario, desconto, total, atributos)
+		SELECT
+			v.id, $2, $3, $4, $5, $6, $7, $8, $9
+		FROM %s.vendas v
+		WHERE v.venda_key = $1
+		ON CONFLICT DO NOTHING
+	`, l.schema, l.schema))
+	if err != nil {
+		return 0, fmt.Errorf("erro ao preparar statement de itens: %w", err)
+	}
+	defer stmt.Close()
+
+	count := 0
+	for _, item := range itens {
+		atributos, _ := json.Marshal(item.Atributos)
+
+		_, err := stmt.Exec(
+			item.VendaKey,
+			item.ProdutoKey,
+			item.Descricao,
+			item.Quantidade,
+			item.Unidade,
+			item.PrecoUnitario,
+			item.Desconto,
+			item.Total,
+			atributos,
+		)
+		if err != nil {
+			log.Printf("aviso: erro ao inserir item da venda %s: %v", item.VendaKey, err)
+			continue
+		}
+		count++
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("erro ao commitar itens: %w", err)
+	}
+
+	return count, nil
+}
+
 // nullableString converte string vazia para nil (NULL no banco)
 func nullableString(s string) interface{} {
 	if s == "" {
