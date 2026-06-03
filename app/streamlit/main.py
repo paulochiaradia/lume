@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+
 import streamlit as st
 
 st.set_page_config(
@@ -6,28 +10,45 @@ st.set_page_config(
     layout="wide"
 )
 
-CLIENT_KEY = "loja_teste"
+# ── Autenticação ─────────────────────────────────────────────
+if not st.session_state.get("logged_in"):
+    from pages.login import render
+    render()
+    st.stop()
 
-st.sidebar.title("Navegação")
+# ── Navegação ────────────────────────────────────────────────
+role = st.session_state.get("role", "viewer")
+name = st.session_state.get("name", "Usuário")
+
+st.sidebar.title("🔆 Lume")
+st.sidebar.caption(f"Olá, {name}")
+st.sidebar.caption(f"Perfil: {role}")
+st.sidebar.divider()
 
 pages = {
-    "🏠 Home": "home",
-    "📦 Estoque": "estoque",
-    "👥 Clientes": "clientes",
-    "📊 Vendas": "vendas",
+    "🏠 Home":      "home",
+    "📊 Vendas":    "vendas",
+    "📦 Estoque":   "estoque",
+    "👥 Clientes":  "clientes",
+    "🛒 Produtos":  "produtos",
 }
 
-selected = st.sidebar.selectbox("Ir para", list(pages.keys()))
+selected = st.sidebar.selectbox("Navegação", list(pages.keys()))
 
 st.sidebar.divider()
+if st.sidebar.button("Sair"):
+    st.session_state.clear()
+    st.rerun()
+
 st.sidebar.caption("Lume Inteligência Comercial")
 st.sidebar.caption("v0.1.0 — MVP")
 
+# ── Renderiza página ─────────────────────────────────────────
 page = pages[selected]
 
 if page == "home":
     from pages.home import render
-    render(CLIENT_KEY)
+    render()
 else:
     st.title("Módulo em desenvolvimento")
     st.info("Este módulo será implementado nas próximas sprints.")
