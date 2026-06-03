@@ -47,6 +47,9 @@ if module == "home":
 elif module == "produtos":
     from pages.produtos import render
     render()
+elif module == "vendas":
+    from pages.vendas import render
+    render()
 else:
     st.title(f"{selected}")
     st.info("Este módulo será implementado nas próximas sprints.")
