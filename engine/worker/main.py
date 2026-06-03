@@ -14,10 +14,9 @@ def main():
     print("╚══════════════════════════════════════╝")
 
     log.info("engine worker iniciado")
-    log.info("aguardando implementação dos algoritmos...")
 
-    while True:
-        time.sleep(60)
+    from worker.job_consumer import start
+    start()
 
 if __name__ == "__main__":
     main()
