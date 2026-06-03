@@ -1,0 +1,31 @@
+id,nome,categoria,subcategoria,unidade,custo,preco,ativo
+P001,Cimento CP-II 50kg,Argamassas,Cimento,SC,28.0,35.0,sim
+P002,Cimento CP-V 50kg,Argamassas,Cimento,SC,30.0,38.0,sim
+P003,Areia Media 20kg,Agregados,Areia,SC,8.0,12.0,sim
+P004,Areia Fina 20kg,Agregados,Areia,SC,7.5,11.0,sim
+P005,Brita 1 20kg,Agregados,Brita,SC,10.0,15.0,sim
+P006,Tijolo Ceramico 9cm,Alvenaria,Tijolos,UN,0.85,1.2,sim
+P007,Tijolo Ceramico 6cm,Alvenaria,Tijolos,UN,0.7,1.0,sim
+P008,Bloco de Concreto,Alvenaria,Blocos,UN,2.5,3.8,sim
+P009,Ferro 10mm 12m,Estrutural,Ferro,BR,42.0,55.0,sim
+P010,Ferro 8mm 12m,Estrutural,Ferro,BR,28.0,38.0,sim
+P011,Ferro 12mm 12m,Estrutural,Ferro,BR,58.0,75.0,sim
+P012,Telha Ceramica,Cobertura,Telhas,UN,2.5,3.8,sim
+P013,Telha Fibrocimento 2.44m,Cobertura,Telhas,UN,18.0,25.0,sim
+P014,Tinta Latex 18L,Acabamento,Tintas,GL,65.0,89.0,sim
+P015,Tinta Acrilica 18L,Acabamento,Tintas,GL,72.0,98.0,sim
+P016,Rejunte 5kg,Acabamento,Rejunte,PCT,8.5,13.0,sim
+P017,Massa Corrida 25kg,Acabamento,Massa,BD,28.0,38.0,sim
+P018,Disco de Corte 4.5,Ferramentas,Discos,UN,4.5,8.0,sim
+P019,Rebolo Desbaste 4.5,Ferramentas,Rebolos,UN,6.0,10.5,sim
+P020,Broca de Concreto 10mm,Ferramentas,Brocas,UN,8.0,14.0,sim
+P021,Mangueira 1/2 50m,Hidraulica,Mangueiras,RL,45.0,65.0,sim
+P022,Tubo PVC 100mm 6m,Hidraulica,Tubos,BR,28.0,42.0,sim
+P023,Tubo PVC 50mm 6m,Hidraulica,Tubos,BR,18.0,28.0,sim
+P024,Joelho PVC 100mm,Hidraulica,Conexoes,UN,4.5,7.0,sim
+P025,Fio Eletrico 2.5mm 100m,Eletrica,Fios,RL,180.0,240.0,sim
+P026,Disjuntor 20A,Eletrica,Disjuntores,UN,18.0,28.0,sim
+P027,Tomada 2P+T,Eletrica,Tomadas,UN,8.0,14.0,sim
+P028,Impermeabilizante 18L,Impermeab.,Liquidos,GL,85.0,120.0,sim
+P029,Argamassa AC-II 20kg,Argamassas,Argamassa,SC,18.0,26.0,sim
+P030,Gesso 20kg,Acabamento,Gesso,SC,12.0,18.0,sim

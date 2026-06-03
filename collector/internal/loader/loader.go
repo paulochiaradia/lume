@@ -201,6 +201,65 @@ func (l *Loader) LoadItensVenda(itens []normalizer.ItemVenda) (int, error) {
 	return count, nil
 }
 
+// LoadClientes faz upsert dos clientes no banco
+func (l *Loader) LoadClientes(clientes []normalizer.Cliente) (int, error) {
+	if len(clientes) == 0 {
+		return 0, nil
+	}
+
+	tx, err := l.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("erro ao iniciar transação: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(fmt.Sprintf(`
+		INSERT INTO %s.clientes
+			(cliente_key, nome, tipo, documento, telefone, cidade, bairro, cep, ativo, atributos)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		ON CONFLICT (cliente_key) DO UPDATE SET
+			nome       = EXCLUDED.nome,
+			tipo       = EXCLUDED.tipo,
+			cidade     = EXCLUDED.cidade,
+			bairro     = EXCLUDED.bairro,
+			ativo      = EXCLUDED.ativo,
+			updated_at = NOW()
+	`, l.schema))
+	if err != nil {
+		return 0, fmt.Errorf("erro ao preparar statement de clientes: %w", err)
+	}
+	defer stmt.Close()
+
+	count := 0
+	for _, c := range clientes {
+		atributos, _ := json.Marshal(c.Atributos)
+
+		_, err := stmt.Exec(
+			c.ClienteKey,
+			c.Nome,
+			nullableString(c.Tipo),
+			nullableString(c.Documento),
+			nullableString(c.Telefone),
+			nullableString(c.Cidade),
+			nullableString(c.Bairro),
+			nullableString(c.CEP),
+			c.Ativo,
+			atributos,
+		)
+		if err != nil {
+			log.Printf("aviso: erro ao inserir cliente %s: %v", c.ClienteKey, err)
+			continue
+		}
+		count++
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("erro ao commitar clientes: %w", err)
+	}
+
+	return count, nil
+}
+
 // nullableString converte string vazia para nil (NULL no banco)
 func nullableString(s string) interface{} {
 	if s == "" {

@@ -1,0 +1,151 @@
+id,nome,tipo,bairro,ativo
+CLI0001,Cliente 0001,pessoa_fisica,Centro,sim
+CLI0002,Cliente 0002,pessoa_fisica,Parque Industrial,sim
+CLI0003,Cliente 0003,autonomo,Vila Nova,sim
+CLI0004,Cliente 0004,pessoa_fisica,Vila Nova,sim
+CLI0005,Cliente 0005,pessoa_fisica,Centro,sim
+CLI0006,Cliente 0006,construtora,Parque Industrial,sim
+CLI0007,Cliente 0007,autonomo,Centro,sim
+CLI0008,Cliente 0008,pessoa_fisica,Bairro Alto,sim
+CLI0009,Cliente 0009,autonomo,Vila Operária,sim
+CLI0010,Cliente 0010,pessoa_fisica,Centro,sim
+CLI0011,Cliente 0011,pessoa_fisica,Jardim América,sim
+CLI0012,Cliente 0012,pessoa_fisica,Residencial Sul,sim
+CLI0013,Cliente 0013,autonomo,Parque Industrial,sim
+CLI0014,Cliente 0014,pessoa_fisica,Residencial Sul,sim
+CLI0015,Cliente 0015,autonomo,Bairro Alto,sim
+CLI0016,Cliente 0016,construtora,Residencial Sul,sim
+CLI0017,Cliente 0017,pessoa_fisica,Centro,sim
+CLI0018,Cliente 0018,pessoa_fisica,Vila Nova,sim
+CLI0019,Cliente 0019,pessoa_fisica,Bairro Alto,sim
+CLI0020,Cliente 0020,construtora,Vila Operária,sim
+CLI0021,Cliente 0021,pessoa_fisica,Residencial Sul,sim
+CLI0022,Cliente 0022,pessoa_fisica,Vila Nova,sim
+CLI0023,Cliente 0023,construtora,Parque Industrial,sim
+CLI0024,Cliente 0024,pessoa_fisica,Vila Nova,sim
+CLI0025,Cliente 0025,pessoa_fisica,Vila Nova,sim
+CLI0026,Cliente 0026,autonomo,Santa Cruz,sim
+CLI0027,Cliente 0027,pessoa_fisica,Residencial Sul,sim
+CLI0028,Cliente 0028,autonomo,Residencial Sul,sim
+CLI0029,Cliente 0029,autonomo,Vila Operária,sim
+CLI0030,Cliente 0030,pessoa_fisica,Vila Nova,sim
+CLI0031,Cliente 0031,pessoa_fisica,Jardim América,sim
+CLI0032,Cliente 0032,pessoa_fisica,Parque Industrial,sim
+CLI0033,Cliente 0033,autonomo,Bairro Alto,sim
+CLI0034,Cliente 0034,autonomo,Parque Industrial,sim
+CLI0035,Cliente 0035,pessoa_fisica,Centro,sim
+CLI0036,Cliente 0036,autonomo,Centro,sim
+CLI0037,Cliente 0037,pessoa_fisica,Bairro Alto,sim
+CLI0038,Cliente 0038,autonomo,Parque Industrial,sim
+CLI0039,Cliente 0039,pessoa_fisica,Residencial Sul,sim
+CLI0040,Cliente 0040,autonomo,Santa Cruz,sim
+CLI0041,Cliente 0041,autonomo,Santa Cruz,sim
+CLI0042,Cliente 0042,autonomo,Jardim América,sim
+CLI0043,Cliente 0043,autonomo,Vila Operária,sim
+CLI0044,Cliente 0044,pessoa_fisica,Bairro Alto,sim
+CLI0045,Cliente 0045,pessoa_fisica,Bairro Alto,sim
+CLI0046,Cliente 0046,autonomo,Jardim América,sim
+CLI0047,Cliente 0047,pessoa_fisica,Vila Nova,sim
+CLI0048,Cliente 0048,pessoa_fisica,Vila Nova,sim
+CLI0049,Cliente 0049,autonomo,Jardim América,sim
+CLI0050,Cliente 0050,pessoa_fisica,Bairro Alto,sim
+CLI0051,Cliente 0051,pessoa_fisica,Bairro Alto,sim
+CLI0052,Cliente 0052,autonomo,Santa Cruz,sim
+CLI0053,Cliente 0053,pessoa_fisica,Centro,sim
+CLI0054,Cliente 0054,pessoa_fisica,Vila Nova,sim
+CLI0055,Cliente 0055,pessoa_fisica,Vila Operária,sim
+CLI0056,Cliente 0056,pessoa_fisica,Residencial Sul,sim
+CLI0057,Cliente 0057,autonomo,Bairro Alto,sim
+CLI0058,Cliente 0058,autonomo,Centro,sim
+CLI0059,Cliente 0059,pessoa_fisica,Vila Operária,sim
+CLI0060,Cliente 0060,pessoa_fisica,Jardim América,sim
+CLI0061,Cliente 0061,pessoa_fisica,Vila Nova,sim
+CLI0062,Cliente 0062,pessoa_fisica,Vila Operária,sim
+CLI0063,Cliente 0063,pessoa_fisica,Parque Industrial,sim
+CLI0064,Cliente 0064,autonomo,Jardim América,sim
+CLI0065,Cliente 0065,pessoa_fisica,Centro,sim
+CLI0066,Cliente 0066,pessoa_fisica,Santa Cruz,sim
+CLI0067,Cliente 0067,construtora,Residencial Sul,sim
+CLI0068,Cliente 0068,pessoa_fisica,Vila Operária,sim
+CLI0069,Cliente 0069,autonomo,Parque Industrial,sim
+CLI0070,Cliente 0070,pessoa_fisica,Vila Nova,sim
+CLI0071,Cliente 0071,construtora,Santa Cruz,sim
+CLI0072,Cliente 0072,pessoa_fisica,Jardim América,sim
+CLI0073,Cliente 0073,autonomo,Santa Cruz,sim
+CLI0074,Cliente 0074,pessoa_fisica,Jardim América,sim
+CLI0075,Cliente 0075,autonomo,Bairro Alto,sim
+CLI0076,Cliente 0076,pessoa_fisica,Parque Industrial,sim
+CLI0077,Cliente 0077,pessoa_fisica,Bairro Alto,sim
+CLI0078,Cliente 0078,pessoa_fisica,Residencial Sul,sim
+CLI0079,Cliente 0079,autonomo,Santa Cruz,sim
+CLI0080,Cliente 0080,autonomo,Parque Industrial,sim
+CLI0081,Cliente 0081,construtora,Centro,sim
+CLI0082,Cliente 0082,pessoa_fisica,Parque Industrial,sim
+CLI0083,Cliente 0083,pessoa_fisica,Centro,sim
+CLI0084,Cliente 0084,construtora,Centro,sim
+CLI0085,Cliente 0085,autonomo,Centro,sim
+CLI0086,Cliente 0086,pessoa_fisica,Vila Nova,sim
+CLI0087,Cliente 0087,pessoa_fisica,Vila Operária,sim
+CLI0088,Cliente 0088,pessoa_fisica,Parque Industrial,sim
+CLI0089,Cliente 0089,pessoa_fisica,Santa Cruz,sim
+CLI0090,Cliente 0090,autonomo,Santa Cruz,sim
+CLI0091,Cliente 0091,pessoa_fisica,Parque Industrial,sim
+CLI0092,Cliente 0092,construtora,Bairro Alto,sim
+CLI0093,Cliente 0093,autonomo,Bairro Alto,sim
+CLI0094,Cliente 0094,pessoa_fisica,Centro,sim
+CLI0095,Cliente 0095,pessoa_fisica,Vila Nova,sim
+CLI0096,Cliente 0096,construtora,Residencial Sul,sim
+CLI0097,Cliente 0097,pessoa_fisica,Vila Nova,sim
+CLI0098,Cliente 0098,autonomo,Parque Industrial,sim
+CLI0099,Cliente 0099,pessoa_fisica,Jardim América,sim
+CLI0100,Cliente 0100,autonomo,Vila Operária,sim
+CLI0101,Cliente 0101,pessoa_fisica,Vila Nova,sim
+CLI0102,Cliente 0102,autonomo,Vila Nova,sim
+CLI0103,Cliente 0103,construtora,Centro,sim
+CLI0104,Cliente 0104,pessoa_fisica,Parque Industrial,sim
+CLI0105,Cliente 0105,autonomo,Santa Cruz,sim
+CLI0106,Cliente 0106,pessoa_fisica,Bairro Alto,sim
+CLI0107,Cliente 0107,pessoa_fisica,Jardim América,sim
+CLI0108,Cliente 0108,autonomo,Bairro Alto,sim
+CLI0109,Cliente 0109,autonomo,Santa Cruz,sim
+CLI0110,Cliente 0110,autonomo,Santa Cruz,sim
+CLI0111,Cliente 0111,autonomo,Vila Operária,sim
+CLI0112,Cliente 0112,autonomo,Centro,sim
+CLI0113,Cliente 0113,pessoa_fisica,Centro,sim
+CLI0114,Cliente 0114,pessoa_fisica,Centro,sim
+CLI0115,Cliente 0115,construtora,Santa Cruz,sim
+CLI0116,Cliente 0116,pessoa_fisica,Jardim América,sim
+CLI0117,Cliente 0117,construtora,Vila Nova,sim
+CLI0118,Cliente 0118,pessoa_fisica,Vila Nova,sim
+CLI0119,Cliente 0119,pessoa_fisica,Parque Industrial,sim
+CLI0120,Cliente 0120,autonomo,Parque Industrial,sim
+CLI0121,Cliente 0121,pessoa_fisica,Centro,sim
+CLI0122,Cliente 0122,pessoa_fisica,Bairro Alto,sim
+CLI0123,Cliente 0123,pessoa_fisica,Residencial Sul,sim
+CLI0124,Cliente 0124,pessoa_fisica,Parque Industrial,sim
+CLI0125,Cliente 0125,pessoa_fisica,Residencial Sul,sim
+CLI0126,Cliente 0126,autonomo,Bairro Alto,sim
+CLI0127,Cliente 0127,autonomo,Vila Operária,sim
+CLI0128,Cliente 0128,pessoa_fisica,Vila Nova,sim
+CLI0129,Cliente 0129,construtora,Vila Nova,sim
+CLI0130,Cliente 0130,construtora,Parque Industrial,sim
+CLI0131,Cliente 0131,pessoa_fisica,Jardim América,sim
+CLI0132,Cliente 0132,pessoa_fisica,Vila Nova,sim
+CLI0133,Cliente 0133,pessoa_fisica,Residencial Sul,sim
+CLI0134,Cliente 0134,autonomo,Santa Cruz,sim
+CLI0135,Cliente 0135,pessoa_fisica,Vila Operária,sim
+CLI0136,Cliente 0136,pessoa_fisica,Centro,sim
+CLI0137,Cliente 0137,pessoa_fisica,Vila Operária,sim
+CLI0138,Cliente 0138,pessoa_fisica,Vila Nova,sim
+CLI0139,Cliente 0139,pessoa_fisica,Jardim América,sim
+CLI0140,Cliente 0140,autonomo,Vila Nova,sim
+CLI0141,Cliente 0141,pessoa_fisica,Jardim América,sim
+CLI0142,Cliente 0142,autonomo,Parque Industrial,sim
+CLI0143,Cliente 0143,pessoa_fisica,Parque Industrial,sim
+CLI0144,Cliente 0144,pessoa_fisica,Vila Operária,sim
+CLI0145,Cliente 0145,pessoa_fisica,Vila Operária,sim
+CLI0146,Cliente 0146,pessoa_fisica,Centro,sim
+CLI0147,Cliente 0147,construtora,Bairro Alto,sim
+CLI0148,Cliente 0148,pessoa_fisica,Centro,sim
+CLI0149,Cliente 0149,construtora,Jardim América,sim
+CLI0150,Cliente 0150,pessoa_fisica,Vila Operária,sim
