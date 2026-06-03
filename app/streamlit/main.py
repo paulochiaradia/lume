@@ -44,6 +44,9 @@ module = get_module(selected)
 if module == "home":
     from pages.home import render
     render()
+elif module == "produtos":
+    from pages.produtos import render
+    render()
 else:
     st.title(f"{selected}")
     st.info("Este módulo será implementado nas próximas sprints.")
