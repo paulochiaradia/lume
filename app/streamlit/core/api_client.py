@@ -69,3 +69,25 @@ def get_estoque_alertas() -> list:
     if response.status_code == 200:
         return response.json()
     return []
+
+def get_clientes_rfm() -> list:
+    """Busca clientes com dados RFM"""
+    response = requests.get(
+        f"{API_URL}/api/v1/clientes/rfm",
+        headers=get_headers(),
+        timeout=10,
+    )
+    if response.status_code == 200:
+        return response.json()
+    return []
+
+def get_resumo_segmentos() -> list:
+    """Busca resumo de segmentos de clientes"""
+    response = requests.get(
+        f"{API_URL}/api/v1/clientes/segmentos",
+        headers=get_headers(),
+        timeout=10,
+    )
+    if response.status_code == 200:
+        return response.json()
+    return []

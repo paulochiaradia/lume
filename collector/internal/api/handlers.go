@@ -117,3 +117,36 @@ func (s *Server) handleProdutosABC(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, produtos)
 }
+
+// handleClientesRFM retorna os clientes classificados por RFM (Recência, Frequência, Valor)
+func (s *Server) handleClientesRFM(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	clientes, err := db.GetClientesRFM(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao buscar clientes")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, clientes)
+}
+
+func (s *Server) handleResumoSegmentos(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	segmentos, err := db.GetResumoSegmentos(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao buscar segmentos")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, segmentos)
+}
