@@ -47,6 +47,7 @@ services:
       POSTGRES_DSN: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       DUCKDB_PATH: /app/data/duckdb
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_PROVIDER: ${LLM_PROVIDER}
       ENV: ${ENV}
     volumes:
       - duckdb_data:/app/data/duckdb
@@ -54,7 +55,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-
+        
   streamlit:
     build:
       context: ./app/streamlit
