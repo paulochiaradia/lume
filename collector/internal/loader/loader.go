@@ -39,17 +39,21 @@ func (l *Loader) LoadVendas(vendas []normalizer.Venda) (int, error) {
 
 	stmt, err := tx.Prepare(fmt.Sprintf(`
 		INSERT INTO %s.vendas 
-			(venda_key, data_venda, vendedor_id, total, desconto, status, canal, atributos)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			(venda_key, data_venda, cliente_id, vendedor_id, total, desconto, status, canal, atributos)
+		SELECT 
+			$1, $2,
+			(SELECT id FROM %s.clientes WHERE cliente_key = $3 LIMIT 1),
+			$4, $5, $6, $7, $8, $9
 		ON CONFLICT (venda_key) DO UPDATE SET
 			data_venda  = EXCLUDED.data_venda,
+			cliente_id  = EXCLUDED.cliente_id,
 			vendedor_id = EXCLUDED.vendedor_id,
 			total       = EXCLUDED.total,
 			desconto    = EXCLUDED.desconto,
 			status      = EXCLUDED.status,
 			canal       = EXCLUDED.canal,
 			atributos   = EXCLUDED.atributos
-	`, l.schema))
+	`, l.schema, l.schema))
 	if err != nil {
 		return 0, fmt.Errorf("erro ao preparar statement: %w", err)
 	}
@@ -62,6 +66,7 @@ func (l *Loader) LoadVendas(vendas []normalizer.Venda) (int, error) {
 		_, err := stmt.Exec(
 			v.VendaKey,
 			v.DataVenda,
+			nullableString(v.ClienteKey),
 			nullableString(v.VendedorID),
 			v.Total,
 			v.Desconto,
