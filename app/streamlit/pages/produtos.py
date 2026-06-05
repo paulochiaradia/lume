@@ -5,126 +5,185 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from core.api_client import get_produtos_abc
+import duckdb
+
+DUCKDB_PATH = os.getenv("DUCKDB_PATH", "/app/data/duckdb")
+
+CORES_CLASSE = {
+    "A": "#1B5E20",
+    "B": "#1565C0",
+    "C": "#B71C1C",
+}
+
+CORES_XYZ = {
+    "X": "#1B5E20",
+    "Y": "#F57C00",
+    "Z": "#B71C1C",
+}
+
+def fmt_brl(value: float) -> str:
+    return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+def load_abc_resultado(client_key: str) -> pd.DataFrame:
+    """Lê o resultado ABC/XYZ do DuckDB"""
+    path = os.path.join(DUCKDB_PATH, f"{client_key}.duckdb")
+    if not os.path.exists(path):
+        return pd.DataFrame()
+    try:
+        conn = duckdb.connect(path, read_only=True)
+        df = conn.execute("SELECT * FROM abc_resultado").df()
+        conn.close()
+        return df
+    except Exception:
+        return pd.DataFrame()
 
 def render():
     st.title("🛒 Produtos & Mix")
-    st.caption("Classificação ABC baseada em faturamento acumulado")
+    st.caption("Matriz ABC/XYZ — classificação por faturamento e previsibilidade de demanda")
 
-    with st.spinner("Carregando produtos..."):
-        produtos = get_produtos_abc()
+    client_key = st.session_state.get("client_key", "loja_teste")
 
-    if not produtos:
-        st.warning("Nenhum dado de produto encontrado.")
+    with st.spinner("Carregando análise ABC/XYZ..."):
+        df = load_abc_resultado(client_key)
+
+    if df.empty:
+        st.warning("Análise ABC/XYZ ainda não calculada. Aguarde o próximo ciclo do engine.")
         return
 
-    df = pd.DataFrame(produtos)
-
     # ── Filtros ──────────────────────────────────────────────
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         classes = ["Todas"] + sorted(df["classe"].unique().tolist())
-        classe_filtro = st.selectbox("Filtrar por classe", classes)
+        classe_filtro = st.selectbox("Classe ABC", classes)
 
     with col2:
-        categorias = ["Todas"] + sorted(df["categoria"].unique().tolist())
-        categoria_filtro = st.selectbox("Filtrar por categoria", categorias)
+        if "classe_xyz" in df.columns:
+            xyz = ["Todas"] + sorted(df["classe_xyz"].dropna().unique().tolist())
+            xyz_filtro = st.selectbox("Classe XYZ", xyz)
+        else:
+            xyz_filtro = "Todas"
+
+    with col3:
+        if "categoria" in df.columns:
+            cats = ["Todas"] + sorted(df["categoria"].dropna().unique().tolist())
+        else:
+            cats = ["Todas"]
+        cat_filtro = st.selectbox("Categoria", cats)
 
     # Aplica filtros
-    df_filtrado = df.copy()
+    df_f = df.copy()
     if classe_filtro != "Todas":
-        df_filtrado = df_filtrado[df_filtrado["classe"] == classe_filtro]
-    if categoria_filtro != "Todas":
-        df_filtrado = df_filtrado[df_filtrado["categoria"] == categoria_filtro]
+        df_f = df_f[df_f["classe"] == classe_filtro]
+    if xyz_filtro != "Todas" and "classe_xyz" in df_f.columns:
+        df_f = df_f[df_f["classe_xyz"] == xyz_filtro]
+    if cat_filtro != "Todas" and "categoria" in df_f.columns:
+        df_f = df_f[df_f["categoria"] == cat_filtro]
 
     st.divider()
 
-    # ── Métricas por classe ──────────────────────────────────
-    st.subheader("Distribuição por Classe")
+    # ── KPIs por classe ABC ──────────────────────────────────
+    st.subheader("Distribuição ABC")
 
     col1, col2, col3 = st.columns(3)
-
-    df_a = df[df["classe"] == "A"]
-    df_b = df[df["classe"] == "B"]
-    df_c = df[df["classe"] == "C"]
-
-    with col1:
-        st.metric(
-            "Classe A — Alto valor",
-            f"{len(df_a)} produtos",
-            f"R$ {df_a['faturamento'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        )
-    with col2:
-        st.metric(
-            "Classe B — Médio valor",
-            f"{len(df_b)} produtos",
-            f"R$ {df_b['faturamento'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        )
-    with col3:
-        st.metric(
-            "Classe C — Baixo valor",
-            f"{len(df_c)} produtos",
-            f"R$ {df_c['faturamento'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        )
+    for classe, col in zip(["A", "B", "C"], [col1, col2, col3]):
+        df_cls = df[df["classe"] == classe]
+        with col:
+            st.metric(
+                f"Classe {classe}",
+                f"{len(df_cls)} produtos",
+                f"{df_cls['percentual'].sum():.1f}% do faturamento"
+            )
 
     st.divider()
 
-    # ── Gráfico de barras ────────────────────────────────────
-    st.subheader("Faturamento por Produto")
+    # ── Gráficos ─────────────────────────────────────────────
+    col1, col2 = st.columns(2)
 
-    color_map = {"A": "#2E7D32", "B": "#F57C00", "C": "#C62828"}
+    with col1:
+        st.subheader("Faturamento por Produto")
+        fig = px.bar(
+            df_f.sort_values("faturamento", ascending=True).tail(20),
+            x="faturamento",
+            y="produto_key",
+            color="classe",
+            color_discrete_map=CORES_CLASSE,
+            orientation="h",
+            labels={"faturamento": "Faturamento (R$)", "produto_key": "Produto"},
+            height=500,
+        )
+        fig.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-    fig = px.bar(
-        df_filtrado.sort_values("faturamento", ascending=True),
-        x="faturamento",
-        y="nome",
-        color="classe",
-        color_discrete_map=color_map,
-        orientation="h",
-        labels={
-            "faturamento": "Faturamento (R$)",
-            "nome": "Produto",
-            "classe": "Classe"
-        },
-        height=max(400, len(df_filtrado) * 35)
-    )
+    with col2:
+        if "classe_xyz" in df.columns:
+            st.subheader("Matriz ABC × XYZ")
+            matrix = df.groupby(
+                ["classe", "classe_xyz"]
+            )["produto_key"].count().reset_index()
+            matrix.columns = ["ABC", "XYZ", "Produtos"]
 
-    fig.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        showlegend=True,
-    )
+            fig_matrix = px.density_heatmap(
+                matrix,
+                x="XYZ",
+                y="ABC",
+                z="Produtos",
+                color_continuous_scale="Greens",
+                labels={"Produtos": "Qtd Produtos"},
+            )
+            fig_matrix.update_layout(
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(fig_matrix, use_container_width=True)
 
-    st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "**AX** = Alto valor, demanda previsível — nunca pode faltar.  \n"
+                "**AZ** = Alto valor, demanda errática — cuidado com overstock.  \n"
+                "**CZ** = Baixo valor, demanda errática — candidato a descontinuar."
+            )
 
     st.divider()
 
     # ── Tabela detalhada ─────────────────────────────────────
     st.subheader("Detalhamento")
 
-    df_tabela = df_filtrado.copy()
-    df_tabela["faturamento"] = df_tabela["faturamento"].apply(
-        lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    )
-    df_tabela.columns = ["Código", "Nome", "Categoria", "Faturamento", "Classe"]
+    colunas = ["produto_key", "faturamento", "quantidade",
+               "num_vendas", "percentual", "percentual_acumulado", "classe"]
 
-    st.dataframe(
-        df_tabela,
-        use_container_width=True,
-        hide_index=True
-    )
+    if "classe_xyz" in df_f.columns:
+        colunas.append("classe_xyz")
+    if "classe_abc_xyz" in df_f.columns:
+        colunas.append("classe_abc_xyz")
 
-    # ── Insight automático ───────────────────────────────────
+    df_tabela = df_f[colunas].copy()
+    df_tabela["faturamento"] = df_tabela["faturamento"].apply(fmt_brl)
+    df_tabela["percentual"]  = df_tabela["percentual"].apply(lambda x: f"{x:.1f}%")
+
+    st.dataframe(df_tabela, use_container_width=True, hide_index=True)
+
     st.divider()
+
+    # ── Insight ──────────────────────────────────────────────
     st.subheader("💡 Insight")
 
-    total_fat = df["faturamento"].sum()
-    fat_a = df_a["faturamento"].sum()
-    pct_a = (fat_a / total_fat * 100) if total_fat > 0 else 0
+    df_a  = df[df["classe"] == "A"]
+    pct_a = df_a["percentual"].sum()
 
-    st.info(
+    insight = (
         f"**{len(df_a)} produto(s) classe A** representam "
         f"**{pct_a:.1f}%** do faturamento total. "
-        f"Garanta que esses produtos nunca fiquem sem estoque."
     )
+
+    if "classe_xyz" in df.columns:
+        ax = len(df[(df["classe"] == "A") & (df["classe_xyz"] == "X")])
+        az = len(df[(df["classe"] == "A") & (df["classe_xyz"] == "Z")])
+        insight += (
+            f"Desses, **{ax} são AX** (alto valor e demanda previsível — prioridade máxima de estoque) "
+            f"e **{az} são AZ** (alto valor mas demanda errática — evite overstock)."
+        )
+
+    st.info(insight)
