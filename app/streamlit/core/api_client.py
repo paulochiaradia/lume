@@ -91,3 +91,14 @@ def get_resumo_segmentos() -> list:
     if response.status_code == 200:
         return response.json()
     return []
+
+def get_estoque_completo() -> list:
+    """Busca estoque completo com alertas"""
+    response = requests.get(
+        f"{API_URL}/api/v1/estoque/completo",
+        headers=get_headers(),
+        timeout=10,
+    )
+    if response.status_code == 200:
+        return response.json()
+    return []

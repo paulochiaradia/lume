@@ -150,3 +150,19 @@ func (s *Server) handleResumoSegmentos(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, segmentos)
 }
+
+func (s *Server) handleEstoqueCompleto(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	estoque, err := db.GetEstoqueCompleto(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao buscar estoque")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, estoque)
+}

@@ -103,6 +103,7 @@ func (s *Server) setupRouter() *chi.Mux {
 
 			// Estoque
 			r.Get("/estoque/alertas", s.handleEstoqueAlertas)
+			r.Get("/estoque/completo", s.handleEstoqueCompleto)
 
 			// Produtos
 			r.Get("/produtos/abc", s.handleProdutosABC)

@@ -537,3 +537,54 @@ func GetResumoSegmentos(db *sql.DB, clientKey string) ([]ResumoSegmento, error) 
 
 	return segmentos, nil
 }
+
+// ── Estoque completo ─────────────────────────────────────────
+
+type EstoqueItem struct {
+	ProdutoKey    string  `json:"produto_key"`
+	Nome          string  `json:"nome"`
+	Categoria     string  `json:"categoria"`
+	Quantidade    float64 `json:"quantidade"`
+	QuantidadeMin float64 `json:"quantidade_min"`
+	PrecoVenda    float64 `json:"preco_venda"`
+	PrecoCusto    float64 `json:"preco_custo"`
+	Alerta        bool    `json:"alerta"`
+}
+
+func GetEstoqueCompleto(db *sql.DB, clientKey string) ([]EstoqueItem, error) {
+	schema := "client_" + clientKey
+
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT
+			e.produto_key,
+			COALESCE(p.nome, e.produto_key)      AS nome,
+			COALESCE(p.categoria, '')             AS categoria,
+			e.quantidade,
+			e.quantidade_min,
+			COALESCE(p.preco_venda, 0)            AS preco_venda,
+			COALESCE(p.preco_custo, 0)            AS preco_custo,
+			(e.quantidade <= e.quantidade_min)    AS alerta
+		FROM %s.estoque e
+		LEFT JOIN %s.produtos p ON p.produto_key = e.produto_key
+		ORDER BY alerta DESC, e.quantidade ASC
+	`, schema, schema))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar estoque: %w", err)
+	}
+	defer rows.Close()
+
+	var itens []EstoqueItem
+	for rows.Next() {
+		var i EstoqueItem
+		if err := rows.Scan(
+			&i.ProdutoKey, &i.Nome, &i.Categoria,
+			&i.Quantidade, &i.QuantidadeMin,
+			&i.PrecoVenda, &i.PrecoCusto, &i.Alerta,
+		); err != nil {
+			continue
+		}
+		itens = append(itens, i)
+	}
+
+	return itens, nil
+}

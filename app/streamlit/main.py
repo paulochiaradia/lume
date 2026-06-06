@@ -53,6 +53,9 @@ elif module == "vendas":
 elif module == "clientes":
     from pages.clientes import render
     render()
+elif module == "estoque":
+    from pages.estoque import render
+    render()
 else:
     st.title(f"{selected}")
     st.info("Este módulo será implementado nas próximas sprints.")
