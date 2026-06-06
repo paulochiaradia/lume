@@ -1,0 +1,130 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Lume PostgreSQL",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "title": "Total de Execuções Hoje",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": "Lume PostgreSQL",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) as value FROM lume_system.etl_logs WHERE started_at >= NOW() - INTERVAL '24 hours'",
+          "refId": "A",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "datasource": "Lume PostgreSQL",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "title": "Erros nas Últimas 24h",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": "Lume PostgreSQL",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) as value FROM lume_system.etl_logs WHERE status = 'error' AND started_at >= NOW() - INTERVAL '24 hours'",
+          "refId": "A",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "datasource": "Lume PostgreSQL",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "red", "value": 60 }
+            ]
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "title": "Tempo Médio de Execução",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": "Lume PostgreSQL",
+          "rawQuery": true,
+          "rawSql": "SELECT EXTRACT(EPOCH FROM AVG(finished_at - started_at))::int as value FROM lume_system.etl_logs WHERE status = 'success' AND started_at >= NOW() - INTERVAL '24 hours'",
+          "refId": "A",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "datasource": "Lume PostgreSQL",
+      "fieldConfig": {
+        "defaults": {}
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 4 },
+      "id": 4,
+      "options": {
+        "footer": { "show": false },
+        "showHeader": true
+      },
+      "title": "Últimas Execuções de ETL",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": "Lume PostgreSQL",
+          "rawQuery": true,
+          "rawSql": "SELECT c.client_key, e.connector_type, e.status, e.records_read, e.records_written, e.error_message, e.started_at, e.finished_at FROM lume_system.etl_logs e JOIN lume_system.clients c ON c.id = e.client_id ORDER BY e.started_at DESC LIMIT 50",
+          "refId": "A",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["lume", "etl"],
+  "title": "Lume — ETL Status",
+  "uid": "lume-etl-status",
+  "version": 1
+}

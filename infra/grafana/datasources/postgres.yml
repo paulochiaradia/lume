@@ -1,0 +1,19 @@
+apiVersion: 1
+
+datasources:
+  - name: Lume PostgreSQL
+    type: postgres
+    url: postgres:5432
+    database: lume
+    user: lume_user
+    secureJsonData:
+      password: lume_dev_123
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 10
+      maxIdleConns: 10
+      connMaxLifetime: 14400
+      postgresVersion: 1600
+      timescaledb: false
+    isDefault: true
+    editable: true
