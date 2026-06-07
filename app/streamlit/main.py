@@ -59,6 +59,9 @@ elif module == "estoque":
 elif module == "anomalias":
     from pages.anomalias import render
     render()
+elif module == "preco":
+    from pages.preco import render
+    render()
 else:
     st.title(f"{selected}")
     st.info("Este módulo será implementado nas próximas sprints.")
