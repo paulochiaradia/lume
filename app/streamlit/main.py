@@ -18,17 +18,17 @@ if not st.session_state.get("logged_in"):
     st.stop()
 
 # ── Navegação por role ───────────────────────────────────────
-role = st.session_state.get("role", "viewer")
-name = st.session_state.get("name", "Usuário")
+role       = st.session_state.get("role", "viewer")
+name       = st.session_state.get("name", "Usuário")
+client_key = st.session_state.get("client_key", "loja_teste")
 
 st.sidebar.title("🔆 Lume")
 st.sidebar.caption(f"Olá, {name}")
 st.sidebar.caption(f"Perfil: {role}")
 st.sidebar.divider()
 
-# Só mostra as páginas permitidas para o role
 allowed_pages = get_allowed_pages(role)
-selected = st.sidebar.selectbox("Navegação", allowed_pages)
+selected      = st.sidebar.selectbox("Navegação", allowed_pages)
 
 st.sidebar.divider()
 if st.sidebar.button("Sair"):
@@ -44,11 +44,11 @@ module = get_module(selected)
 if module == "home":
     from pages.home import render
     render()
-elif module == "produtos":
-    from pages.produtos import render
-    render()
 elif module == "vendas":
     from pages.vendas import render
+    render()
+elif module == "produtos":
+    from pages.produtos import render
     render()
 elif module == "clientes":
     from pages.clientes import render

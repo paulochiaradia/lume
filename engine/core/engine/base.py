@@ -60,6 +60,7 @@ class SegmentEngine(ABC):
         return self.read(f"""
             SELECT iv.venda_id, iv.produto_key,
                    iv.quantidade, iv.total,
+                   iv.preco_unitario, iv.desconto,
                    v.data_venda, v.cliente_id
             FROM {self.schema}.itens_venda iv
             JOIN {self.schema}.vendas v ON v.id = iv.venda_id
