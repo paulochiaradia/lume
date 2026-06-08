@@ -52,6 +52,7 @@ services:
     volumes:
       - duckdb_data:/app/data/duckdb
       - ./clients:/app/clients
+      - reports_data:/app/data/reports
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,11 +66,13 @@ services:
     environment:
       POSTGRES_DSN: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       DUCKDB_PATH: /app/data/duckdb
+      REPORTS_DIR: /app/data/reports
       ENV: ${ENV}
       PYTHONPATH: /engine
     volumes:
       - duckdb_data:/app/data/duckdb
       - ./engine:/engine
+      - reports_data:/app/data/reports
     depends_on:
       - postgres
       - engine
@@ -108,3 +111,4 @@ volumes:
   postgres_data:
   duckdb_data:
   grafana_data:
+  reports_data:
