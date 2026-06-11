@@ -6,8 +6,10 @@ import { getUser, PAGES_BY_ROLE, clearSession } from "@/lib/auth"
 import {
   LayoutDashboard, TrendingUp, Package, Users,
   ShoppingCart, AlertTriangle, DollarSign,
-  FileText, UserCog, Settings, LogOut, Zap,
+  FileText, UserCog, Settings, LogOut,
 } from "lucide-react"
+
+import Logo from "@/components/ui/Logo"
 
 const ALL_NAV_ITEMS = [
   { key: "home",          label: "Dashboard",      icon: LayoutDashboard, href: "/home" },
@@ -38,24 +40,8 @@ export default function Sidebar() {
       }}
     >
       {/* Logo */}
-      <div className="mb-6 px-2 flex items-center gap-2">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: "var(--color-inverse-surface)" }}
-        >
-          <Zap size={16} color="var(--color-inverse-on-surface)" />
-        </div>
-        <div>
-          <span
-            className="text-[15px] font-bold tracking-tight"
-            style={{ fontFamily: "var(--font-display)", color: "var(--color-on-surface)" }}
-          >
-            Lume
-          </span>
-          <p className="text-[10px] leading-none mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>
-            Inteligência Comercial
-          </p>
-        </div>
+      <div className="mb-6 px-2">
+        <Logo size="md" showText={true} />
       </div>
 
       {/* Itens de navegação */}
