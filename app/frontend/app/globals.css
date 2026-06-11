@@ -42,12 +42,12 @@
   --color-inverse-on-surface:        #eaf1ff;
   --color-surface-tint:              #565e74;
 
-  /* ── Tipografia ─────────────────────────────────────────── */
-  --font-display:  "Hanken Grotesk", sans-serif;
-  --font-headline: "Hanken Grotesk", sans-serif;
-  --font-body:     "Inter", sans-serif;
-  --font-label:    "Inter", sans-serif;
-  --font-data:     "Inter", sans-serif;
+/* ── Tipografia ─────────────────────────────────────────── */
+--font-display:  var(--font-hanken);
+--font-headline: var(--font-hanken);
+--font-body:     var(--font-inter);
+--font-label:    var(--font-inter);
+--font-data:     var(--font-inter);
 
   /* ── Border radius ──────────────────────────────────────── */
   --radius-sm:   0.125rem;

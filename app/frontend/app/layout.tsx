@@ -27,10 +27,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
-      <body
-        className={`${hankenGrotesk.variable} ${inter.variable} bg-background text-on-surface antialiased`}
-      >
+    <html
+      lang="pt-BR"
+      className={`${hankenGrotesk.variable} ${inter.variable}`}
+    >
+      <body className="bg-background text-on-surface antialiased">
         {children}
       </body>
     </html>
