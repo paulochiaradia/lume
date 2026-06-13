@@ -6,10 +6,13 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "var(--color-background)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col md:ml-64 h-screen overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-margin">
+      <div
+        className="flex flex-col h-screen overflow-hidden"
+        style={{ marginLeft: "256px", width: "calc(100% - 256px)" }}
+      >
+        <main className="flex-1 overflow-y-auto px-8 pb-8">
           {children}
         </main>
       </div>

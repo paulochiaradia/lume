@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { getUser, PAGES_BY_ROLE, clearSession } from "@/lib/auth"
@@ -26,7 +27,12 @@ const ALL_NAV_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const user     = getUser()
+  const [user, setUser] = useState<ReturnType<typeof getUser>>(null)
+
+  useEffect(() => {
+    setUser(getUser())
+  }, [])
+
   const role     = user?.role ?? "viewer"
   const allowed  = PAGES_BY_ROLE[role] ?? []
   const navItems = ALL_NAV_ITEMS.filter(item => allowed.includes(item.key))

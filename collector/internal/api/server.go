@@ -65,7 +65,11 @@ func (s *Server) setupRouter() *chi.Mux {
 
 	// ── CORS ─────────────────────────────────────────────────
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost", "http://localhost:8501"},
+		AllowedOrigins: []string{
+			"http://localhost",
+			"http://localhost:3000",
+			"http://localhost:8501",
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		ExposedHeaders:   []string{"Link"},

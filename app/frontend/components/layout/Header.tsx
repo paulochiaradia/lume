@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Search, Bell } from "lucide-react"
 import { getUser } from "@/lib/auth"
 
@@ -9,8 +9,12 @@ interface HeaderProps {
 }
 
 export default function Header({ title }: HeaderProps) {
-  const user             = getUser()
+  const [user, setUser] = useState<ReturnType<typeof getUser>>(null)
   const [search, setSearch] = useState("")
+
+  useEffect(() => {
+    setUser(getUser())
+  }, [])
 
   const roleLabels: Record<string, string> = {
     admin:   "Administrador",
@@ -19,14 +23,14 @@ export default function Header({ title }: HeaderProps) {
     viewer:  "Visualizador",
   }
 
-  return (
-    <header
-      className="flex justify-between items-center w-full px-8 h-16 flex-shrink-0 border-b mb-6"
-      style={{
-        backgroundColor: "var(--color-surface-container-lowest)",
-        borderColor:     "var(--color-outline-variant)",
-      }}
-    >
+return (
+  <header
+    className="flex justify-between items-center h-16 flex-shrink-0 border-b mb-6 -mx-8 px-8 sticky top-0 z-10"
+    style={{
+      backgroundColor: "var(--color-surface-container-lowest)",
+      borderColor:     "var(--color-outline-variant)",
+    }}
+  >
       {/* Título */}
       <h1
         className="text-2xl font-bold tracking-tight"
