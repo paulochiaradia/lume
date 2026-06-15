@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react"
 import Header from "@/components/layout/Header"
 import { TrendingUp, ShoppingCart, Tag, AlertTriangle, Loader2 } from "lucide-react"
-import api from "@/lib/api"
-import { HomeKPIs, VendaDia, EstoqueItem } from "@/types"
+import api, { Insight } from "@/lib/api"
 import { Zap, AlertCircle, TrendingDown, ChevronRight } from "lucide-react"
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar
 } from "recharts"
-
+import { HomeKPIs, VendaDia, EstoqueItem } from "@/types"
 
 function fmt(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -57,90 +56,26 @@ function KpiCard({ label, value, icon, accent, iconColor }: KpiCardProps & { ico
   )
 }
 
-function InsightCard({
-  type, message, action, href,
-}: {
-  type: "success" | "warning" | "danger"
-  message: string
-  action?: string
-  href?: string
-}) {
-  const config = {
-    success: {
-      icon: <Zap size={16} />,
-      bg: "var(--color-primary-fixed)",
-      border: "var(--color-primary-fixed-dim)",
-      color: "var(--color-on-surface)",
-      iconBg: "var(--color-secondary)",
-      iconColor: "#ffffff",
-    },
-    warning: {
-      icon: <AlertCircle size={16} />,
-      bg: "#fffbeb",
-      border: "#fde68a",
-      color: "var(--color-on-surface)",
-      iconBg: "#f59e0b",
-      iconColor: "#ffffff",
-    },
-    danger: {
-      icon: <TrendingDown size={16} />,
-      bg: "var(--color-error-container)",
-      border: "#fca5a5",
-      color: "var(--color-on-surface)",
-      iconBg: "var(--color-error)",
-      iconColor: "#ffffff",
-    },
-  }
-
-  const c = config[type]
-
-  return (
-    <div
-      className="flex items-start gap-3 px-4 py-3 rounded-xl border"
-      style={{ backgroundColor: c.bg, borderColor: c.border }}
-    >
-      <div
-        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-        style={{ backgroundColor: c.iconBg, color: c.iconColor }}
-      >
-        {c.icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm leading-relaxed" style={{ color: c.color }}>
-          {message}
-        </p>
-      </div>
-      {action && href && (
-        <a
-          href={href}
-          className="flex items-center gap-1 text-xs font-semibold whitespace-nowrap mt-0.5 flex-shrink-0"
-          style={{ color: "var(--color-secondary)" }}
-        >
-          {action}
-          <ChevronRight size={13} />
-        </a>
-      )}
-    </div>
-  )
-}
-
 export default function HomePage() {
   const [kpis,    setKpis]    = useState<HomeKPIs | null>(null)
   const [vendas,  setVendas]  = useState<VendaDia[]>([])
   const [alertas, setAlertas] = useState<EstoqueItem[]>([])
+  const [insights, setInsights] = useState<Insight[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       try {
-        const [kpisRes, vendasRes, alertasRes] = await Promise.all([
+        const [kpisRes, vendasRes, alertasRes, insightsRes] = await Promise.all([
           api.get("/home/kpis"),
           api.get("/vendas/por-dia"),
           api.get("/estoque/alertas"),
+          api.get("/insights"),
         ])
         setKpis(kpisRes.data)
         setVendas(vendasRes.data ?? [])
         setAlertas(alertasRes.data ?? [])
+        setInsights(insightsRes.data ?? [])
       } catch (err) {
         console.error(err)
       } finally {
@@ -196,114 +131,89 @@ export default function HomePage() {
             />
           </div>
         )}
+        {/* Insights dinamicos */}
+        {insights.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <h2
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
+              Insights do Sistema
+            </h2>
 
-{/* Insights automatizados */}
-{kpis && (
-  <div className="flex flex-col gap-3">
-    <h2
-      className="text-xs font-semibold uppercase tracking-wide"
-      style={{ color: "var(--color-on-surface-variant)" }}
-    >
-      Insights do Sistema
-    </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {insights.slice(0, 3).map((insight) => {
+                const config = {
+                  success: {
+                    bg: "var(--color-primary-fixed)",
+                    border: "var(--color-primary-fixed-dim)",
+                    iconBg: "var(--color-secondary)",
+                    labelColor: "var(--color-on-primary-fixed-variant)",
+                    icon: <Zap size={15} color="#ffffff" />,
+                  },
+                  warning: {
+                    bg: "#fffbeb",
+                    border: "#fde68a",
+                    iconBg: "#f59e0b",
+                    labelColor: "#92400e",
+                    icon: <AlertCircle size={15} color="#ffffff" />,
+                  },
+                  danger: {
+                    bg: "var(--color-error-container)",
+                    border: "#fca5a5",
+                    iconBg: "var(--color-error)",
+                    labelColor: "var(--color-on-error-container)",
+                    icon: <TrendingDown size={15} color="#ffffff" />,
+                  },
+                }
 
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                const c = config[insight.icone] ?? config.success
 
-      {/* Insight 1 — Estoque */}
-      <div
-        className="rounded-xl border p-5 flex flex-col gap-3"
-        style={{
-          backgroundColor: "#fffbeb",
-          borderColor:     "#fde68a",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: "#f59e0b" }}>
-            <AlertCircle size={15} color="#ffffff" />
+                return (
+                  <div
+                    key={insight.tipo}
+                    className="rounded-xl border p-5 flex flex-col gap-3"
+                    style={{ backgroundColor: c.bg, borderColor: c.border }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-7 h-7 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: c.iconBg }}
+                      >
+                        {c.icon}
+                      </div>
+                      <span
+                        className="text-xs font-semibold uppercase tracking-wide"
+                        style={{ color: c.labelColor }}
+                      >
+                        {insight.titulo}
+                      </span>
+                    </div>
+
+                    <p
+                      className="text-sm leading-relaxed flex-1"
+                      style={{ color: "var(--color-on-surface)" }}
+                    >
+                      {insight.mensagem}
+                    </p>
+
+                    {insight.acao && insight.href && (
+                      <a
+                        href={insight.href}
+                        className="flex items-center gap-1 text-xs font-semibold mt-auto"
+                        style={{ color: c.labelColor }}
+                      >
+                        {insight.acao} <ChevronRight size={13} />
+                      </a>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
           </div>
-          <span className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: "#92400e" }}>
-            Estoque
-          </span>
-        </div>
-        <p className="text-sm leading-relaxed flex-1" style={{ color: "var(--color-on-surface)" }}>
-          {alertas.length > 0
-            ? `${alertas.length} produto(s) com estoque abaixo do mínimo. Risco de ruptura nos próximos dias.`
-            : "Todos os produtos estão com estoque adequado."}
-        </p>
-        {alertas.length > 0 && (
-          <a href="/estoque"
-            className="flex items-center gap-1 text-xs font-semibold mt-auto"
-            style={{ color: "#92400e" }}>
-            Ver estoque <ChevronRight size={13} />
-          </a>
         )}
-      </div>
-
-      {/* Insight 2 — Descontos */}
-      <div
-        className="rounded-xl border p-5 flex flex-col gap-3"
-        style={{
-          backgroundColor: "var(--color-error-container)",
-          borderColor:     "#fca5a5",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: "var(--color-error)" }}>
-            <TrendingDown size={15} color="#ffffff" />
-          </div>
-          <span className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: "var(--color-on-error-container)" }}>
-            Descontos
-          </span>
-        </div>
-        <p className="text-sm leading-relaxed flex-1" style={{ color: "var(--color-on-surface)" }}>
-          {kpis.total_desconto > kpis.faturamento * 0.05
-            ? `Descontos representam ${((kpis.total_desconto / kpis.faturamento) * 100).toFixed(1)}% do faturamento. Avalie a política de descontos.`
-            : `Descontos em nível saudável: ${((kpis.total_desconto / kpis.faturamento) * 100).toFixed(1)}% do faturamento.`}
-        </p>
-        <a href="/anomalias"
-          className="flex items-center gap-1 text-xs font-semibold mt-auto"
-          style={{ color: "var(--color-on-error-container)" }}>
-          Ver anomalias <ChevronRight size={13} />
-        </a>
-      </div>
-
-      {/* Insight 3 — Performance */}
-      <div
-        className="rounded-xl border p-5 flex flex-col gap-3"
-        style={{
-          backgroundColor: "var(--color-primary-fixed)",
-          borderColor:     "var(--color-primary-fixed-dim)",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: "var(--color-secondary)" }}>
-            <Zap size={15} color="#ffffff" />
-          </div>
-          <span className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: "var(--color-on-primary-fixed-variant)" }}>
-            Performance
-          </span>
-        </div>
-        <p className="text-sm leading-relaxed flex-1" style={{ color: "var(--color-on-surface)" }}>
-          Ticket médio de <strong>{fmt(kpis.ticket_medio)}</strong> em {kpis.total_vendas} vendas.
-          Produtos classe A respondem por 80% do faturamento total.
-        </p>
-        <a href="/produtos"
-          className="flex items-center gap-1 text-xs font-semibold mt-auto"
-          style={{ color: "var(--color-on-primary-fixed-variant)" }}>
-          Ver produtos <ChevronRight size={13} />
-        </a>
-      </div>
-
-    </div>
-  </div>
-)}
-
+        
         {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 

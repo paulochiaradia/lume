@@ -166,3 +166,19 @@ func (s *Server) handleEstoqueCompleto(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, estoque)
 }
+
+func (s *Server) handleInsights(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	insights, err := db.GetInsights(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao buscar insights")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, insights)
+}

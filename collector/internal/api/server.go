@@ -115,6 +115,9 @@ func (s *Server) setupRouter() *chi.Mux {
 			// Clientes
 			r.Get("/clientes/rfm", s.handleClientesRFM)
 			r.Get("/clientes/segmentos", s.handleResumoSegmentos)
+
+			// Insights
+			r.Get("/insights", s.handleInsights)
 		})
 	})
 

@@ -31,4 +31,17 @@ api.interceptors.response.use(
   }
 )
 
+// ── Insights ─────────────────────────────────────────────────
+export interface Insight {
+  tipo:       string
+  prioridade: number
+  titulo:     string
+  mensagem:   string
+  acao:       string
+  href:       string
+  categoria:  string
+  icone:      "success" | "warning" | "danger"
+  gerado_em:  string
+}
+
 export default api

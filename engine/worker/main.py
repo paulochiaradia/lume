@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import time
+from core.algorithms.insights import gerar_insights, salvar_insights, salvar_insights_postgres
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -94,6 +95,30 @@ def run_analytics_for_client(client_key: str):
         if not df_margem.empty:
             engine.save("margem_resultado", df_margem)
         log.info(f"{client_key}: Elasticidade salva")
+
+        # ── Insights ──────────────────────────────────────────────
+        log.info(f"{client_key}: gerando insights...")
+        from core.algorithms.insights import gerar_insights, salvar_insights
+        from core.db.postgres import read_query
+
+        try:
+            df_kpis = read_query(client_key, f"""
+                SELECT
+                    COALESCE(SUM(total), 0)    AS faturamento,
+                    COALESCE(AVG(total), 0)    AS ticket_medio,
+                    COUNT(*)                   AS total_vendas,
+                    COALESCE(SUM(desconto), 0) AS total_desconto
+                FROM client_{client_key}.vendas
+                WHERE status = 'concluida'
+            """)
+            kpis = df_kpis.iloc[0].to_dict() if not df_kpis.empty else {}
+        except Exception:
+            kpis = {}
+
+        insights, top3 = gerar_insights(client_key, kpis)
+        salvar_insights(client_key, insights, top3)
+        salvar_insights_postgres(client_key, top3)
+        log.info(f"{client_key}: {len(insights)} insights, {len(top3)} no top3")
 
         log.info(f"{client_key}: analytics concluído com sucesso")
 

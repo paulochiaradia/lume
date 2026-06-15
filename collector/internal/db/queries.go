@@ -588,3 +588,56 @@ func GetEstoqueCompleto(db *sql.DB, clientKey string) ([]EstoqueItem, error) {
 
 	return itens, nil
 }
+
+// ── Insights ─────────────────────────────────────────────────
+
+type Insight struct {
+	Tipo       string `json:"tipo"`
+	Prioridade int    `json:"prioridade"`
+	Titulo     string `json:"titulo"`
+	Mensagem   string `json:"mensagem"`
+	Acao       string `json:"acao"`
+	Href       string `json:"href"`
+	Categoria  string `json:"categoria"`
+	Icone      string `json:"icone"`
+	GeradoEm   string `json:"gerado_em"`
+}
+
+func GetInsights(db *sql.DB, clientKey string) ([]Insight, error) {
+	schema := "client_" + clientKey
+
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT
+			COALESCE(tipo, ''),
+			COALESCE(prioridade::int, 99),
+			COALESCE(titulo, ''),
+			COALESCE(mensagem, ''),
+			COALESCE(acao, ''),
+			COALESCE(href, ''),
+			COALESCE(categoria, ''),
+			COALESCE(icone, 'success'),
+			COALESCE(gerado_em::text, NOW()::text)
+		FROM %s.insights_cache
+		ORDER BY prioridade ASC
+		LIMIT 10
+	`, schema))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar insights: %w", err)
+	}
+	defer rows.Close()
+
+	var insights []Insight
+	for rows.Next() {
+		var i Insight
+		if err := rows.Scan(
+			&i.Tipo, &i.Prioridade, &i.Titulo,
+			&i.Mensagem, &i.Acao, &i.Href,
+			&i.Categoria, &i.Icone, &i.GeradoEm,
+		); err != nil {
+			continue
+		}
+		insights = append(insights, i)
+	}
+
+	return insights, nil
+}
