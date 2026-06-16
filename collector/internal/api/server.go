@@ -103,7 +103,11 @@ func (s *Server) setupRouter() *chi.Mux {
 
 			// Vendas
 			r.Get("/vendas/resumo", s.handleVendasResumo)
-			r.Get("/vendas/por-dia", s.handleVendasPorDia)
+			r.Get("/vendas/por-dia", s.handleVendasPorDia)   // Atualizado para receber parâmetros
+			r.Get("/vendas/top-dias", s.handleTopDias)       // Nova rota server-side adicionada
+			r.Get("/vendas/por-hora", s.handleVendasPorHora) // Nova rota de Pico de Atendimento
+			r.Get("/vendas/mix", s.handleMixVendas)          // Nova rota de Mix de Vendas
+			r.Get("/vendas/kpis", s.handleVendasKPIs)
 
 			// Estoque
 			r.Get("/estoque/alertas", s.handleEstoqueAlertas)
@@ -118,6 +122,7 @@ func (s *Server) setupRouter() *chi.Mux {
 
 			// Insights
 			r.Get("/insights", s.handleInsights)
+
 		})
 	})
 
