@@ -254,7 +254,7 @@ func getStartTimeForTopDias(periodo string) time.Time {
 	}
 }
 
-// Handlers HTTP para os novos fluxos Server-Side
+// HANDLER DA HOME: Puxa o dobro de dias para o gráfico comparativo funcionar
 func (s *Server) handleVendasPorDia(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	if claims == nil {
@@ -267,25 +267,17 @@ func (s *Server) handleVendasPorDia(w http.ResponseWriter, r *http.Request) {
 		periodo = "month"
 	}
 
-	// Data base congelada da base de testes
 	baseDate := time.Date(2024, 12, 31, 23, 59, 59, 0, time.UTC)
 	var startTime time.Time
-	var diasParaCortar int
 
 	switch periodo {
 	case "week":
-		// Busca 13 dias atrás (7 da semana + 6 para aquecer a média móvel)
-		startTime = baseDate.AddDate(0, 0, -13)
-		diasParaCortar = 6
+		startTime = baseDate.AddDate(0, 0, -14) // 2 semanas
 	case "month":
-		// Busca o dia 1º do mês, e recua mais 6 dias no mês anterior para aquecer o cálculo
 		primeiroDiaMes := time.Date(baseDate.Year(), baseDate.Month(), 1, 0, 0, 0, 0, baseDate.Location())
-		startTime = primeiroDiaMes.AddDate(0, 0, -6)
-		diasParaCortar = 6
+		startTime = primeiroDiaMes.AddDate(0, -1, 0) // 2 meses
 	case "year":
-		// Num gráfico anual, não costumamos cortar dias de aquecimento (o impacto visual é mínimo)
-		startTime = time.Date(baseDate.Year(), 1, 1, 0, 0, 0, 0, baseDate.Location())
-		diasParaCortar = 0
+		startTime = time.Date(baseDate.Year()-1, 1, 1, 0, 0, 0, 0, baseDate.Location()) // 2 anos
 	}
 
 	series, err := db.GetVendasPorDia(s.db, claims.ClientKey, startTime)
@@ -293,14 +285,52 @@ func (s *Server) handleVendasPorDia(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "erro ao calcular vendas por dia")
 		return
 	}
-
-	// Remove os dias "fantasmas" que usamos apenas para o Postgres calcular a média com precisão
-	if len(series) > diasParaCortar {
-		series = series[diasParaCortar:]
-	}
-
 	writeJSON(w, http.StatusOK, series)
 }
+
+// HANDLER DA TELA DE VENDAS: Puxa só o período atual + 6 dias e depois corta
+func (s *Server) handleTendenciaDiaria(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	periodo := r.URL.Query().Get("periodo")
+	if periodo == "" {
+		periodo = "month"
+	}
+
+	baseDate := time.Date(2024, 12, 31, 23, 59, 59, 0, time.UTC)
+	var startTime time.Time
+	var diasParaCortar int
+
+	switch periodo {
+	case "week":
+		startTime = baseDate.AddDate(0, 0, -13)
+		diasParaCortar = 6
+	case "month":
+		primeiroDiaMes := time.Date(baseDate.Year(), baseDate.Month(), 1, 0, 0, 0, 0, baseDate.Location())
+		startTime = primeiroDiaMes.AddDate(0, 0, -6)
+		diasParaCortar = 6
+	case "year":
+		startTime = time.Date(baseDate.Year(), 1, 1, 0, 0, 0, 0, baseDate.Location())
+		diasParaCortar = 0
+	}
+
+	series, err := db.GetVendasTendencia(s.db, claims.ClientKey, startTime)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao calcular tendencia")
+		return
+	}
+
+	if len(series) > diasParaCortar && diasParaCortar > 0 {
+		series = series[diasParaCortar:]
+	}
+	writeJSON(w, http.StatusOK, series)
+}
+
+// HANDLER DO TOP DIAS (Corrigindo o erro "undefined")
 func (s *Server) handleTopDias(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	if claims == nil {
@@ -309,15 +339,28 @@ func (s *Server) handleTopDias(w http.ResponseWriter, r *http.Request) {
 	}
 
 	periodo := r.URL.Query().Get("periodo")
-	startTime := getStartTimeForTopDias(periodo)
-
-	vendas, err := db.GetTopDias(s.db, claims.ClientKey, startTime)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "erro ao buscar top dias analíticos")
-		return
+	if periodo == "" {
+		periodo = "week"
 	}
 
-	writeJSON(w, http.StatusOK, vendas)
+	baseDate := time.Date(2024, 12, 31, 23, 59, 59, 0, time.UTC)
+	var startTime time.Time
+
+	switch periodo {
+	case "week":
+		startTime = baseDate.AddDate(0, 0, -7)
+	case "month":
+		startTime = time.Date(baseDate.Year(), baseDate.Month(), 1, 0, 0, 0, 0, baseDate.Location())
+	case "year":
+		startTime = time.Date(baseDate.Year(), 1, 1, 0, 0, 0, 0, baseDate.Location())
+	}
+
+	topDias, err := db.GetTopDias(s.db, claims.ClientKey, startTime)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao calcular top dias")
+		return
+	}
+	writeJSON(w, http.StatusOK, topDias)
 }
 
 func (s *Server) handleVendasKPIs(w http.ResponseWriter, r *http.Request) {

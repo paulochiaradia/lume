@@ -103,12 +103,12 @@ func (s *Server) setupRouter() *chi.Mux {
 
 			// Vendas
 			r.Get("/vendas/resumo", s.handleVendasResumo)
-			r.Get("/vendas/por-dia", s.handleVendasPorDia)   // Atualizado para receber parâmetros
-			r.Get("/vendas/top-dias", s.handleTopDias)       // Nova rota server-side adicionada
-			r.Get("/vendas/por-hora", s.handleVendasPorHora) // Nova rota de Pico de Atendimento
-			r.Get("/vendas/mix", s.handleMixVendas)          // Nova rota de Mix de Vendas
+			r.Get("/vendas/por-dia", s.handleVendasPorDia)             // ← A Home usa esse
+			r.Get("/vendas/tendencia-diaria", s.handleTendenciaDiaria) // ← A página de Vendas usa esse!
+			r.Get("/vendas/top-dias", s.handleTopDias)                 // ← Agora ele existe e não vai dar erro
+			r.Get("/vendas/por-hora", s.handleVendasPorHora)
+			r.Get("/vendas/mix", s.handleMixVendas)
 			r.Get("/vendas/kpis", s.handleVendasKPIs)
-
 			// Estoque
 			r.Get("/estoque/alertas", s.handleEstoqueAlertas)
 			r.Get("/estoque/completo", s.handleEstoqueCompleto)
