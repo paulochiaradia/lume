@@ -24,7 +24,7 @@ export interface HomeKPIs {
   faturamento: number
   ticket_medio: number
   total_vendas: number
-  total_desconto: number
+  itens_por_venda: number
 }
 
 export interface VendaDia {
@@ -83,4 +83,15 @@ export interface UsuarioLoja {
   email: string
   role: string
   active: boolean
+}
+
+export interface VendaHora {
+  hora: string;
+  faturamento: number;
+}
+
+export interface MixCategoria {
+  categoria: string;
+  faturamento: number;
+  fill?: string; // Colocamos a interrogação (?) porque essa cor nós injetamos no frontend, a API não manda
 }
