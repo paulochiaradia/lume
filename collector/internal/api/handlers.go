@@ -399,3 +399,37 @@ func (s *Server) handleVendasKPIs(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, kpis)
 }
+
+// HANDLER DO RANKING DE VENDEDORES
+func (s *Server) handleRankingVendedores(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	periodo := r.URL.Query().Get("periodo")
+	if periodo == "" {
+		periodo = "month"
+	}
+
+	baseDate := time.Date(2024, 12, 31, 23, 59, 59, 0, time.UTC)
+	var startTime time.Time
+
+	switch periodo {
+	case "week":
+		startTime = baseDate.AddDate(0, 0, -7)
+	case "month":
+		startTime = time.Date(baseDate.Year(), baseDate.Month(), 1, 0, 0, 0, 0, baseDate.Location())
+	case "year":
+		startTime = time.Date(baseDate.Year(), 1, 1, 0, 0, 0, 0, baseDate.Location())
+	}
+
+	ranking, err := db.GetRankingVendedores(s.db, claims.ClientKey, startTime)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar ranking de vendedores")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, ranking)
+}
