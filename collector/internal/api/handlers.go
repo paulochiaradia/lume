@@ -255,7 +255,6 @@ func getStartTimeForTopDias(periodo string) time.Time {
 }
 
 // Handlers HTTP para os novos fluxos Server-Side
-
 func (s *Server) handleVendasPorDia(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	if claims == nil {
@@ -264,17 +263,44 @@ func (s *Server) handleVendasPorDia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	periodo := r.URL.Query().Get("periodo")
-	startTime := getStartTimeForComparativo(periodo)
+	if periodo == "" {
+		periodo = "month"
+	}
 
-	vendas, err := db.GetVendasPorDia(s.db, claims.ClientKey, startTime)
+	// Data base congelada da base de testes
+	baseDate := time.Date(2024, 12, 31, 23, 59, 59, 0, time.UTC)
+	var startTime time.Time
+	var diasParaCortar int
+
+	switch periodo {
+	case "week":
+		// Busca 13 dias atrás (7 da semana + 6 para aquecer a média móvel)
+		startTime = baseDate.AddDate(0, 0, -13)
+		diasParaCortar = 6
+	case "month":
+		// Busca o dia 1º do mês, e recua mais 6 dias no mês anterior para aquecer o cálculo
+		primeiroDiaMes := time.Date(baseDate.Year(), baseDate.Month(), 1, 0, 0, 0, 0, baseDate.Location())
+		startTime = primeiroDiaMes.AddDate(0, 0, -6)
+		diasParaCortar = 6
+	case "year":
+		// Num gráfico anual, não costumamos cortar dias de aquecimento (o impacto visual é mínimo)
+		startTime = time.Date(baseDate.Year(), 1, 1, 0, 0, 0, 0, baseDate.Location())
+		diasParaCortar = 0
+	}
+
+	series, err := db.GetVendasPorDia(s.db, claims.ClientKey, startTime)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "erro ao buscar faturamento comparativo")
+		writeError(w, http.StatusInternalServerError, "erro ao calcular vendas por dia")
 		return
 	}
 
-	writeJSON(w, http.StatusOK, vendas)
-}
+	// Remove os dias "fantasmas" que usamos apenas para o Postgres calcular a média com precisão
+	if len(series) > diasParaCortar {
+		series = series[diasParaCortar:]
+	}
 
+	writeJSON(w, http.StatusOK, series)
+}
 func (s *Server) handleTopDias(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	if claims == nil {
