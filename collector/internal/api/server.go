@@ -111,6 +111,7 @@ func (s *Server) setupRouter() *chi.Mux {
 			r.Get("/vendas/kpis", s.handleVendasKPIs)
 			r.Get("/vendas/ranking-vendedores", s.handleRankingVendedores)
 			r.Get("/vendas/heatmap", s.handleVendasHeatmap)
+			r.Get("/vendas/insights", s.handleVendasInsights) // ← Nova rota isolada!
 
 			// Estoque
 			r.Get("/estoque/alertas", s.handleEstoqueAlertas)

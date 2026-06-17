@@ -120,6 +120,19 @@ def run_analytics_for_client(client_key: str):
         salvar_insights_postgres(client_key, top3)
         log.info(f"{client_key}: {len(insights)} insights, {len(top3)} no top3")
 
+        # ── Insights de Vendas (O Novo Motor) ─────────────────────
+        log.info(f"{client_key}: gerando insights exclusivos de vendas...")
+        from core.algorithms.insights_vendas import (
+            gerar_insights_vendas, 
+            salvar_insights_vendas, 
+            salvar_insights_vendas_postgres
+        )
+        
+        insights_v, top3_v = gerar_insights_vendas(client_key, kpis)
+        salvar_insights_vendas(client_key, insights_v, top3_v)
+        salvar_insights_vendas_postgres(client_key, top3_v)
+        log.info(f"{client_key}: {len(insights_v)} insights de vendas criados.")
+
         log.info(f"{client_key}: analytics concluído com sucesso")
 
     except Exception as e:

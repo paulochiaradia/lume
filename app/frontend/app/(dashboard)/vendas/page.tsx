@@ -35,7 +35,6 @@ type VendaDia = {
   mediaMovel: number
 }
 
-// NOVO: Tipagem para o Mix de Categorias
 type MixCategoria = {
   categoria: string
   faturamento: number
@@ -56,6 +55,18 @@ type HeatmapPonto = {
   dia: string
   hora: string
   faturamento: number
+}
+
+type Insight = {
+  tipo: string
+  prioridade: number
+  titulo: string
+  mensagem: string
+  acao?: string
+  href?: string
+  categoria: string
+  icone: string
+  gerado_em?: string
 }
 
 // ── Mock Data (Apenas para blocos não integrados) ────────────────
@@ -119,23 +130,36 @@ export default function VendasPage() {
   const [sellersData, setSellersData] = useState<RankingVendedor[]>([]) 
   const [loading, setLoading] = useState(true)
   const [heatmapData, setHeatmapData] = useState<HeatmapPonto[]>([])
+  const [insightsData, setInsightsData] = useState<Insight[]>([])
 
 useEffect(() => {
     async function fetchDashboardData() {
       setLoading(true)
       try {
-        const [kpisResponse, dailyResponse, mixResponse, sellersResponse, heatmapResponse] = await Promise.all([
+        // Adicionamos a 6ª requisição (insightsResponse) no array
+        const [
+          kpisResponse, 
+          dailyResponse, 
+          mixResponse, 
+          sellersResponse, 
+          heatmapResponse, 
+          insightsResponse // <-- NOVO AQUI
+        ] = await Promise.all([
           api.get(`/vendas/kpis?periodo=${periodo}`),
           api.get(`/vendas/tendencia-diaria?periodo=${periodo}`), 
           api.get(`/vendas/mix?periodo=${periodo}`),
           api.get(`/vendas/ranking-vendedores?periodo=${periodo}`),
-          api.get(`/vendas/heatmap?periodo=${periodo}`) // NOVA REQUISIÇÃO
+          api.get(`/vendas/heatmap?periodo=${periodo}`),
+          api.get(`/vendas/insights`) // <-- NOSSO NOVO ENDPOINT AQUI
         ])
         
         setKpis(kpisResponse.data)
         setDailyData(dailyResponse.data || [])
         setSellersData(sellersResponse.data || [])
-        setHeatmapData(heatmapResponse.data || []) // ALIMENTA O ESTADO
+        setHeatmapData(heatmapResponse.data || [])
+        
+        // Alimenta o estado com os dados reais do Go
+        setInsightsData(insightsResponse.data || []) 
 
         // Gerador de cores para o gráfico de Mix
         const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"]
