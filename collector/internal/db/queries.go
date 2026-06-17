@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// ── Structs ──────────────────────────────────────────────────
+// ── Structs Base do Sistema ──────────────────────────────────
 
 type Client struct {
 	ID        string
@@ -30,7 +30,6 @@ type ETLLog struct {
 	FinishedAt     *time.Time
 }
 
-// User representa um usuário do sistema
 type User struct {
 	ID           string
 	ClientID     string
@@ -43,7 +42,6 @@ type User struct {
 
 // ── Clients ──────────────────────────────────────────────────
 
-// GetActiveClients retorna todos os clientes ativos
 func GetActiveClients(db *sql.DB) ([]Client, error) {
 	rows, err := db.Query(`
 		SELECT id, client_key, name, segment, erp_type, erp_config, active
@@ -67,11 +65,9 @@ func GetActiveClients(db *sql.DB) ([]Client, error) {
 		}
 		clients = append(clients, c)
 	}
-
 	return clients, nil
 }
 
-// GetClientByKey retorna um cliente pelo client_key
 func GetClientByKey(db *sql.DB, clientKey string) (*Client, error) {
 	var c Client
 	err := db.QueryRow(`
@@ -91,86 +87,6 @@ func GetClientByKey(db *sql.DB, clientKey string) (*Client, error) {
 	return &c, nil
 }
 
-// ── ETL Logs ─────────────────────────────────────────────────
-
-// InsertETLLog cria um novo registro de log e retorna o ID
-func InsertETLLog(db *sql.DB, clientID, connectorType string) (string, error) {
-	var id string
-	err := db.QueryRow(`
-		INSERT INTO lume_system.etl_logs (client_id, connector_type, status)
-		VALUES ($1, $2, 'running')
-		RETURNING id
-	`, clientID, connectorType).Scan(&id)
-	if err != nil {
-		return "", fmt.Errorf("erro ao criar etl_log: %w", err)
-	}
-	return id, nil
-}
-
-// UpdateETLLogSuccess marca o log como sucesso
-func UpdateETLLogSuccess(db *sql.DB, logID string, recordsRead, recordsWritten int) error {
-	_, err := db.Exec(`
-		UPDATE lume_system.etl_logs
-		SET status = 'success',
-		    records_read = $2,
-		    records_written = $3,
-		    finished_at = NOW()
-		WHERE id = $1
-	`, logID, recordsRead, recordsWritten)
-	if err != nil {
-		return fmt.Errorf("erro ao atualizar etl_log: %w", err)
-	}
-	return nil
-}
-
-// UpdateETLLogError marca o log como erro
-func UpdateETLLogError(db *sql.DB, logID string, errMsg string) error {
-	_, err := db.Exec(`
-		UPDATE lume_system.etl_logs
-		SET status = 'error',
-		    error_message = $2,
-		    finished_at = NOW()
-		WHERE id = $1
-	`, logID, errMsg)
-	if err != nil {
-		return fmt.Errorf("erro ao atualizar etl_log com erro: %w", err)
-	}
-	return nil
-}
-
-// ── Jobs ─────────────────────────────────────────────────────
-
-// EnqueueJob enfileira um job para o Python processar
-func EnqueueJob(db *sql.DB, clientID, jobType string, payload []byte) error {
-	_, err := db.Exec(`
-		INSERT INTO lume_system.jobs (client_id, job_type, payload)
-		VALUES ($1, $2, $3)
-	`, clientID, jobType, payload)
-	if err != nil {
-		return fmt.Errorf("erro ao enfileirar job: %w", err)
-	}
-	return nil
-}
-
-// ── Users ─────────────────────────────────────────────────
-// GetUserByEmail busca um usuário pelo email
-func GetUserByEmail(db *sql.DB, email string) (*User, error) {
-	var u User
-	err := db.QueryRow(`
-		SELECT id, client_id, email, password_hash, role, name, active
-		FROM lume_system.users
-		WHERE email = $1 AND active = true
-	`, email).Scan(&u.ID, &u.ClientID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.Active)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("usuário não encontrado")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("erro ao buscar usuário: %w", err)
-	}
-	return &u, nil
-}
-
-// GetClientByID busca um cliente pelo ID
 func GetClientByID(db *sql.DB, clientID string) (*Client, error) {
 	var c Client
 	err := db.QueryRow(`
@@ -190,6 +106,81 @@ func GetClientByID(db *sql.DB, clientID string) (*Client, error) {
 	return &c, nil
 }
 
+// ── ETL Logs ─────────────────────────────────────────────────
+
+func InsertETLLog(db *sql.DB, clientID, connectorType string) (string, error) {
+	var id string
+	err := db.QueryRow(`
+		INSERT INTO lume_system.etl_logs (client_id, connector_type, status)
+		VALUES ($1, $2, 'running')
+		RETURNING id
+	`, clientID, connectorType).Scan(&id)
+	if err != nil {
+		return "", fmt.Errorf("erro ao criar etl_log: %w", err)
+	}
+	return id, nil
+}
+
+func UpdateETLLogSuccess(db *sql.DB, logID string, recordsRead, recordsWritten int) error {
+	_, err := db.Exec(`
+		UPDATE lume_system.etl_logs
+		SET status = 'success',
+			records_read = $2,
+			records_written = $3,
+			finished_at = NOW()
+		WHERE id = $1
+	`, logID, recordsRead, recordsWritten)
+	if err != nil {
+		return fmt.Errorf("erro ao atualizar etl_log: %w", err)
+	}
+	return nil
+}
+
+func UpdateETLLogError(db *sql.DB, logID string, errMsg string) error {
+	_, err := db.Exec(`
+		UPDATE lume_system.etl_logs
+		SET status = 'error',
+			error_message = $2,
+			finished_at = NOW()
+		WHERE id = $1
+	`, logID, errMsg)
+	if err != nil {
+		return fmt.Errorf("erro ao atualizar etl_log com erro: %w", err)
+	}
+	return nil
+}
+
+// ── Jobs ─────────────────────────────────────────────────────
+
+func EnqueueJob(db *sql.DB, clientID, jobType string, payload []byte) error {
+	_, err := db.Exec(`
+		INSERT INTO lume_system.jobs (client_id, job_type, payload)
+		VALUES ($1, $2, $3)
+	`, clientID, jobType, payload)
+	if err != nil {
+		return fmt.Errorf("erro ao enfileirar job: %w", err)
+	}
+	return nil
+}
+
+// ── Users ────────────────────────────────────────────────────
+
+func GetUserByEmail(db *sql.DB, email string) (*User, error) {
+	var u User
+	err := db.QueryRow(`
+		SELECT id, client_id, email, password_hash, role, name, active
+		FROM lume_system.users
+		WHERE email = $1 AND active = true
+	`, email).Scan(&u.ID, &u.ClientID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.Active)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("usuário não encontrado")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar usuário: %w", err)
+	}
+	return &u, nil
+}
+
 // ── Home KPIs ────────────────────────────────────────────────
 
 type HomeKPIs struct {
@@ -199,7 +190,6 @@ type HomeKPIs struct {
 	ItensPorVenda float64 `json:"itens_por_venda"`
 }
 
-// GetHomeKPIs busca os indicadores do mês atual
 func GetHomeKPIs(db *sql.DB, clientKey string, startTime time.Time) (HomeKPIs, error) {
 	schema := "client_" + clientKey
 
@@ -229,11 +219,10 @@ func GetHomeKPIs(db *sql.DB, clientKey string, startTime time.Time) (HomeKPIs, e
 	if err != nil {
 		return kpis, fmt.Errorf("erro ao buscar kpis: %w", err)
 	}
-
 	return kpis, nil
 }
 
-// ── Vendas ───────────────────────────────────────────────────
+// ── Vendas (Módulo Novo) ─────────────────────────────────────
 
 type VendasResumo struct {
 	Faturamento   float64 `json:"faturamento"`
@@ -263,7 +252,6 @@ func GetVendasResumo(db *sql.DB, clientKey string) (*VendasResumo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("erro ao buscar resumo: %w", err)
 	}
-
 	return &resumo, nil
 }
 
@@ -271,23 +259,25 @@ type VendaDia struct {
 	Dia         string  `json:"dia"`
 	Vendas      int     `json:"vendas"`
 	Faturamento float64 `json:"faturamento"`
+	MediaMovel  float64 `json:"mediaMovel"`
 }
 
-// GetVendasPorDia busca as vendas agrupadas por dia a partir de uma data inicial
+// GetVendasPorDia retorna o faturamento diário com a média móvel de 7 dias
+// 1. QUERY EXCLUSIVA DA HOME (Simples, foca em trazer 2 meses de dados para comparar)
 func GetVendasPorDia(db *sql.DB, clientKey string, startTime time.Time) ([]VendaDia, error) {
 	schema := "client_" + clientKey
-
 	rows, err := db.Query(fmt.Sprintf(`
 		SELECT
-			DATE(data_venda)::text,
-			COUNT(*),
-			COALESCE(SUM(total), 0)
+			TO_CHAR(data_venda, 'YYYY-MM-DD') as dia,
+			COUNT(*) as vendas,
+			COALESCE(SUM(total), 0) as faturamento,
+			0 as media_movel
 		FROM %s.vendas
-		WHERE status = 'concluida'
-		  AND data_venda >= $1
-		GROUP BY DATE(data_venda)
-		ORDER BY DATE(data_venda) ASC
+		WHERE status = 'concluida' AND data_venda >= $1
+		GROUP BY TO_CHAR(data_venda, 'YYYY-MM-DD')
+		ORDER BY dia
 	`, schema), startTime)
+
 	if err != nil {
 		return nil, fmt.Errorf("erro ao buscar vendas por dia: %w", err)
 	}
@@ -296,16 +286,55 @@ func GetVendasPorDia(db *sql.DB, clientKey string, startTime time.Time) ([]Venda
 	vendas := []VendaDia{}
 	for rows.Next() {
 		var v VendaDia
-		if err := rows.Scan(&v.Dia, &v.Vendas, &v.Faturamento); err != nil {
+		if err := rows.Scan(&v.Dia, &v.Vendas, &v.Faturamento, &v.MediaMovel); err != nil {
 			continue
 		}
 		vendas = append(vendas, v)
 	}
-
 	return vendas, nil
 }
 
-// GetTopDias retorna os 5 dias com maior faturamento dentro da janela selecionada
+// 2. QUERY EXCLUSIVA DA TELA DE VENDAS (Média Móvel com Window Function)
+func GetVendasTendencia(db *sql.DB, clientKey string, startTime time.Time) ([]VendaDia, error) {
+	schema := "client_" + clientKey
+	rows, err := db.Query(fmt.Sprintf(`
+		WITH diarios AS (
+			SELECT
+				DATE(data_venda) as data_real,
+				COUNT(*) as vendas,
+				COALESCE(SUM(total), 0) as faturamento
+			FROM %s.vendas
+			WHERE status = 'concluida' AND data_venda >= $1
+			GROUP BY DATE(data_venda)
+		)
+		SELECT
+			TO_CHAR(data_real, 'YYYY-MM-DD') as dia,
+			vendas,
+			faturamento,
+			ROUND(COALESCE(AVG(faturamento) OVER (
+				ORDER BY data_real
+				ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+			), 0), 2) as media_movel
+		FROM diarios
+		ORDER BY data_real
+	`, schema), startTime)
+
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar tendencia: %w", err)
+	}
+	defer rows.Close()
+
+	vendas := []VendaDia{}
+	for rows.Next() {
+		var v VendaDia
+		if err := rows.Scan(&v.Dia, &v.Vendas, &v.Faturamento, &v.MediaMovel); err != nil {
+			continue
+		}
+		vendas = append(vendas, v)
+	}
+	return vendas, nil
+}
+
 func GetTopDias(db *sql.DB, clientKey string, startTime time.Time) ([]VendaDia, error) {
 	schema := "client_" + clientKey
 
@@ -334,8 +363,157 @@ func GetTopDias(db *sql.DB, clientKey string, startTime time.Time) ([]VendaDia, 
 		}
 		vendas = append(vendas, v)
 	}
-
 	return vendas, nil
+}
+
+type VendaHora struct {
+	Hora        string  `json:"hora"`
+	Faturamento float64 `json:"faturamento"`
+}
+
+func GetVendasPorHora(db *sql.DB, clientKey string, startTime time.Time) ([]VendaHora, error) {
+	schema := "client_" + clientKey
+
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT
+			TO_CHAR(data_venda, 'HH24:00') as hora,
+			COALESCE(SUM(total), 0) as faturamento
+		FROM %s.vendas
+		WHERE status = 'concluida' 
+		  AND data_venda >= $1
+		GROUP BY TO_CHAR(data_venda, 'HH24:00')
+		ORDER BY hora ASC
+	`, schema), startTime)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar vendas por hora: %w", err)
+	}
+	defer rows.Close()
+
+	var vendas []VendaHora
+	for rows.Next() {
+		var v VendaHora
+		if err := rows.Scan(&v.Hora, &v.Faturamento); err != nil {
+			continue
+		}
+		vendas = append(vendas, v)
+	}
+	return vendas, nil
+}
+
+type MixCategoria struct {
+	Categoria   string  `json:"categoria"`
+	Faturamento float64 `json:"faturamento"`
+}
+
+func GetMixCategorias(db *sql.DB, clientKey string, startTime time.Time) ([]MixCategoria, error) {
+	schema := "client_" + clientKey
+
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT
+			COALESCE(p.categoria, 'Sem Categoria') as categoria,
+			COALESCE(SUM(iv.total), 0) as faturamento
+		FROM %s.itens_venda iv
+		JOIN %s.vendas v ON iv.venda_id = v.id
+		LEFT JOIN %s.produtos p ON p.produto_key = iv.produto_key
+		WHERE v.status = 'concluida' 
+		  AND v.data_venda >= $1
+		GROUP BY COALESCE(p.categoria, 'Sem Categoria')
+		ORDER BY faturamento DESC
+		LIMIT 5
+	`, schema, schema, schema), startTime)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar mix de categorias: %w", err)
+	}
+	defer rows.Close()
+
+	var categorias []MixCategoria
+	for rows.Next() {
+		var c MixCategoria
+		if err := rows.Scan(&c.Categoria, &c.Faturamento); err != nil {
+			continue
+		}
+		categorias = append(categorias, c)
+	}
+	return categorias, nil
+}
+
+type TrendValue struct {
+	Atual    float64 `json:"atual"`
+	Anterior float64 `json:"anterior"`
+	Variacao float64 `json:"variacao"`
+}
+
+type VendasKPIsTrend struct {
+	Faturamento     TrendValue `json:"faturamento"`
+	TicketMedio     TrendValue `json:"ticket_medio"`
+	TotalTransacoes TrendValue `json:"total_transacoes"`
+	PercDesconto    TrendValue `json:"perc_desconto"`
+}
+
+func GetVendasKPIsTrend(db *sql.DB, clientKey string, currentStart, previousStart time.Time) (VendasKPIsTrend, error) {
+	schema := "client_" + clientKey
+	var kpis VendasKPIsTrend
+
+	query := fmt.Sprintf(`
+		SELECT
+			-- Período Atual
+			COALESCE(SUM(total) FILTER (WHERE data_venda >= $1), 0) as fat_atual,
+			COUNT(id) FILTER (WHERE data_venda >= $1) as trans_atual,
+			COALESCE(SUM(desconto) FILTER (WHERE data_venda >= $1), 0) as desc_atual,
+
+			-- Período Anterior
+			COALESCE(SUM(total) FILTER (WHERE data_venda >= $2 AND data_venda < $1), 0) as fat_ant,
+			COUNT(id) FILTER (WHERE data_venda >= $2 AND data_venda < $1) as trans_ant,
+			COALESCE(SUM(desconto) FILTER (WHERE data_venda >= $2 AND data_venda < $1), 0) as desc_ant
+		FROM %s.vendas
+		WHERE status = 'concluida' AND data_venda >= $2
+	`, schema)
+
+	var fatAtual, descAtual, fatAnt, descAnt float64
+	var transAtual, transAnt int
+
+	err := db.QueryRow(query, currentStart, previousStart).Scan(
+		&fatAtual, &transAtual, &descAtual,
+		&fatAnt, &transAnt, &descAnt,
+	)
+	if err != nil {
+		return kpis, fmt.Errorf("erro na query de tendencia: %w", err)
+	}
+
+	safeDiv := func(a float64, b int) float64 {
+		if b == 0 {
+			return 0
+		}
+		return a / float64(b)
+	}
+
+	calcTrend := func(atual, anterior float64) float64 {
+		if anterior == 0 {
+			if atual > 0 {
+				return 100.0
+			}
+			return 0.0
+		}
+		return ((atual - anterior) / anterior) * 100.0
+	}
+
+	calcPercDesconto := func(fat, desc float64) float64 {
+		if (fat + desc) == 0 {
+			return 0
+		}
+		return (desc / (fat + desc)) * 100.0
+	}
+
+	kpis.Faturamento = TrendValue{Atual: fatAtual, Anterior: fatAnt, Variacao: calcTrend(fatAtual, fatAnt)}
+	kpis.TotalTransacoes = TrendValue{Atual: float64(transAtual), Anterior: float64(transAnt), Variacao: calcTrend(float64(transAtual), float64(transAnt))}
+	tmAtual := safeDiv(fatAtual, transAtual)
+	tmAnt := safeDiv(fatAnt, transAnt)
+	kpis.TicketMedio = TrendValue{Atual: tmAtual, Anterior: tmAnt, Variacao: calcTrend(tmAtual, tmAnt)}
+	percDescAtual := calcPercDesconto(fatAtual, descAtual)
+	percDescAnt := calcPercDesconto(fatAnt, descAnt)
+	kpis.PercDesconto = TrendValue{Atual: percDescAtual, Anterior: percDescAnt, Variacao: percDescAtual - percDescAnt}
+
+	return kpis, nil
 }
 
 // ── Estoque ──────────────────────────────────────────────────
@@ -374,7 +552,6 @@ func GetEstoqueAlertas(db *sql.DB, clientKey string) ([]EstoqueAlerta, error) {
 		}
 		alertas = append(alertas, a)
 	}
-
 	return alertas, nil
 }
 
@@ -435,7 +612,6 @@ func GetProdutosABC(db *sql.DB, clientKey string) ([]ProdutoABC, error) {
 		}
 		produtos = append(produtos, p)
 	}
-
 	return produtos, nil
 }
 
@@ -497,9 +673,9 @@ func GetClientesRFM(db *sql.DB, clientKey string) ([]ClienteRFM, error) {
 		}
 		clientes = append(clientes, c)
 	}
-
 	return clientes, nil
 }
+
 func GetResumoSegmentos(db *sql.DB, clientKey string) ([]ResumoSegmento, error) {
 	schema := "client_" + clientKey
 
@@ -533,14 +709,14 @@ func GetResumoSegmentos(db *sql.DB, clientKey string) ([]ResumoSegmento, error) 
 			SELECT
 				r.*,
 				CASE WHEN r.recencia  <= p.p25_r THEN 3
-				     WHEN r.recencia  <= p.p75_r THEN 2
-				     ELSE 1 END AS score_r,
+					 WHEN r.recencia  <= p.p75_r THEN 2
+					 ELSE 1 END AS score_r,
 				CASE WHEN r.frequencia >= p.p75_f THEN 3
-				     WHEN r.frequencia >= p.p25_f THEN 2
-				     ELSE 1 END AS score_f,
+					 WHEN r.frequencia >= p.p25_f THEN 2
+					 ELSE 1 END AS score_f,
 				CASE WHEN r.valor_total >= p.p75_m THEN 3
-				     WHEN r.valor_total >= p.p25_m THEN 2
-				     ELSE 1 END AS score_m
+					 WHEN r.valor_total >= p.p25_m THEN 2
+					 ELSE 1 END AS score_m
 			FROM rfm r, percentis p
 		)
 		SELECT
@@ -578,7 +754,6 @@ func GetResumoSegmentos(db *sql.DB, clientKey string) ([]ResumoSegmento, error) 
 		}
 		segmentos = append(segmentos, s)
 	}
-
 	return segmentos, nil
 }
 
@@ -629,7 +804,6 @@ func GetEstoqueCompleto(db *sql.DB, clientKey string) ([]EstoqueItem, error) {
 		}
 		itens = append(itens, i)
 	}
-
 	return itens, nil
 }
 
@@ -682,183 +856,104 @@ func GetInsights(db *sql.DB, clientKey string) ([]Insight, error) {
 		}
 		insights = append(insights, i)
 	}
-
 	return insights, nil
 }
 
-// ── Vendas por Hora (Pico de Atendimento) ────────────────────
+// ── Ranking de Vendedores ────────────────────────────────────
 
-type VendaHora struct {
+type RankingVendedor struct {
+	ID          string  `json:"id"`
+	Nome        string  `json:"nome"`
+	Vendas      int     `json:"vendas"`
+	Faturamento float64 `json:"faturamento"`
+	Ticket      float64 `json:"ticket"`
+	UPA         float64 `json:"upa"`
+	Desconto    float64 `json:"desconto"`
+}
+
+func GetRankingVendedores(db *sql.DB, clientKey string, startTime time.Time) ([]RankingVendedor, error) {
+	schema := "client_" + clientKey
+
+	rows, err := db.Query(fmt.Sprintf(`
+		WITH itens_agrupados AS (
+			SELECT venda_id, SUM(quantidade) as qtd_itens
+			FROM %s.itens_venda
+			GROUP BY venda_id
+		)
+		SELECT
+			COALESCE(v.vendedor_id, 'Não Informado') AS id,
+			COUNT(v.id) AS qtd_vendas,
+			COALESCE(SUM(v.total), 0) AS faturamento,
+			COALESCE(SUM(v.total) / NULLIF(COUNT(v.id), 0), 0) AS ticket_medio,
+			COALESCE(SUM(ia.qtd_itens) / NULLIF(COUNT(v.id), 0), 0) AS upa,
+			COALESCE((SUM(v.desconto) / NULLIF(SUM(v.total) + SUM(v.desconto), 0)) * 100, 0) AS perc_desconto
+		FROM %s.vendas v
+		LEFT JOIN itens_agrupados ia ON ia.venda_id = v.id
+		WHERE v.status = 'concluida' AND v.data_venda >= $1
+		GROUP BY v.vendedor_id
+		ORDER BY faturamento DESC
+	`, schema, schema), startTime)
+
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar ranking de vendedores: %w", err)
+	}
+	defer rows.Close()
+
+	var ranking []RankingVendedor
+	for rows.Next() {
+		var r RankingVendedor
+		if err := rows.Scan(
+			&r.ID, &r.Vendas, &r.Faturamento,
+			&r.Ticket, &r.UPA, &r.Desconto,
+		); err != nil {
+			continue
+		}
+		// Como não temos tabela de Vendedores com nome, usamos o ID/Código como nome
+		r.Nome = r.ID
+		ranking = append(ranking, r)
+	}
+
+	return ranking, nil
+}
+
+// ── Heatmap Comercial ────────────────────────────────────────
+
+type HeatmapPonto struct {
+	Dia         string  `json:"dia"`
 	Hora        string  `json:"hora"`
 	Faturamento float64 `json:"faturamento"`
 }
 
-func GetVendasPorHora(db *sql.DB, clientKey string, startTime time.Time) ([]VendaHora, error) {
+func GetVendasHeatmap(db *sql.DB, clientKey string, startTime time.Time) ([]HeatmapPonto, error) {
 	schema := "client_" + clientKey
 
 	rows, err := db.Query(fmt.Sprintf(`
 		SELECT
-			TO_CHAR(data_venda, 'HH24:00') as hora,
+			CASE EXTRACT(DOW FROM data_venda)
+				WHEN 1 THEN 'Seg' WHEN 2 THEN 'Ter' WHEN 3 THEN 'Qua'
+				WHEN 4 THEN 'Qui' WHEN 5 THEN 'Sex' WHEN 6 THEN 'Sáb'
+				ELSE 'Dom'
+			END as dia,
+			TO_CHAR(data_venda, 'HH24"h"') as hora,
 			COALESCE(SUM(total), 0) as faturamento
 		FROM %s.vendas
-		WHERE status = 'concluida' 
-		  AND data_venda >= $1
-		GROUP BY TO_CHAR(data_venda, 'HH24:00')
-		ORDER BY hora ASC
+		WHERE status = 'concluida' AND data_venda >= $1
+		GROUP BY EXTRACT(DOW FROM data_venda), TO_CHAR(data_venda, 'HH24"h"')
 	`, schema), startTime)
+
 	if err != nil {
-		return nil, fmt.Errorf("erro ao buscar vendas por hora: %w", err)
+		return nil, fmt.Errorf("erro ao buscar dados do heatmap: %w", err)
 	}
 	defer rows.Close()
 
-	var vendas []VendaHora
+	var pontos []HeatmapPonto
 	for rows.Next() {
-		var v VendaHora
-		if err := rows.Scan(&v.Hora, &v.Faturamento); err != nil {
+		var p HeatmapPonto
+		if err := rows.Scan(&p.Dia, &p.Hora, &p.Faturamento); err != nil {
 			continue
 		}
-		vendas = append(vendas, v)
+		pontos = append(pontos, p)
 	}
 
-	return vendas, nil
-}
-
-// ── Mix de Vendas por Categoria (Doughnut Chart) ─────────────
-
-type MixCategoria struct {
-	Categoria   string  `json:"categoria"`
-	Faturamento float64 `json:"faturamento"`
-}
-
-func GetMixCategorias(db *sql.DB, clientKey string, startTime time.Time) ([]MixCategoria, error) {
-	schema := "client_" + clientKey
-
-	// Fazemos o JOIN com 'vendas' para filtrar pela data e status
-	// e com 'produtos' para pegar o nome da categoria
-	rows, err := db.Query(fmt.Sprintf(`
-		SELECT
-			COALESCE(p.categoria, 'Sem Categoria') as categoria,
-			COALESCE(SUM(iv.total), 0) as faturamento
-		FROM %s.itens_venda iv
-		JOIN %s.vendas v ON iv.venda_id = v.id
-		LEFT JOIN %s.produtos p ON p.produto_key = iv.produto_key
-		WHERE v.status = 'concluida' 
-		  AND v.data_venda >= $1
-		GROUP BY COALESCE(p.categoria, 'Sem Categoria')
-		ORDER BY faturamento DESC
-		LIMIT 5
-	`, schema, schema, schema), startTime)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao buscar mix de categorias: %w", err)
-	}
-	defer rows.Close()
-
-	var categorias []MixCategoria
-	for rows.Next() {
-		var c MixCategoria
-		if err := rows.Scan(&c.Categoria, &c.Faturamento); err != nil {
-			continue
-		}
-		categorias = append(categorias, c)
-	}
-
-	return categorias, nil
-}
-
-// TrendValue armazena o valor atual, o passado e o crescimento percentual
-type TrendValue struct {
-	Atual    float64 `json:"atual"`
-	Anterior float64 `json:"anterior"`
-	Variacao float64 `json:"variacao"`
-}
-
-// VendasKPIsTrend representa o Bloco 1 da página de Vendas
-type VendasKPIsTrend struct {
-	Faturamento     TrendValue `json:"faturamento"`
-	TicketMedio     TrendValue `json:"ticket_medio"`
-	TotalTransacoes TrendValue `json:"total_transacoes"`
-	PercDesconto    TrendValue `json:"perc_desconto"`
-}
-
-// GetVendasKPIsTrend calcula os KPIs comparando o período atual com o anterior
-func GetVendasKPIsTrend(db *sql.DB, clientKey string, currentStart, previousStart time.Time) (VendasKPIsTrend, error) {
-	schema := "client_" + clientKey
-	var kpis VendasKPIsTrend
-
-	query := fmt.Sprintf(`
-		SELECT
-			-- Período Atual
-			COALESCE(SUM(total) FILTER (WHERE data_venda >= $1), 0) as fat_atual,
-			COUNT(id) FILTER (WHERE data_venda >= $1) as trans_atual,
-			COALESCE(SUM(desconto) FILTER (WHERE data_venda >= $1), 0) as desc_atual,
-
-			-- Período Anterior
-			COALESCE(SUM(total) FILTER (WHERE data_venda >= $2 AND data_venda < $1), 0) as fat_ant,
-			COUNT(id) FILTER (WHERE data_venda >= $2 AND data_venda < $1) as trans_ant,
-			COALESCE(SUM(desconto) FILTER (WHERE data_venda >= $2 AND data_venda < $1), 0) as desc_ant
-		FROM %s.vendas
-		WHERE status = 'concluida' AND data_venda >= $2
-	`, schema)
-
-	var fatAtual, descAtual, fatAnt, descAnt float64
-	var transAtual, transAnt int
-
-	err := db.QueryRow(query, currentStart, previousStart).Scan(
-		&fatAtual, &transAtual, &descAtual,
-		&fatAnt, &transAnt, &descAnt,
-	)
-	if err != nil {
-		return kpis, fmt.Errorf("erro na query de tendencia: %w", err)
-	}
-
-	// Helpers de cálculo seguro (evita divisão por zero)
-	safeDiv := func(a float64, b int) float64 {
-		if b == 0 {
-			return 0
-		}
-		return a / float64(b)
-	}
-
-	calcTrend := func(atual, anterior float64) float64 {
-		if anterior == 0 {
-			if atual > 0 {
-				return 100.0
-			}
-			return 0.0
-		}
-		return ((atual - anterior) / anterior) * 100.0
-	}
-
-	calcPercDesconto := func(fat, desc float64) float64 {
-		if (fat + desc) == 0 {
-			return 0
-		}
-		return (desc / (fat + desc)) * 100.0
-	}
-
-	// 1. Faturamento
-	kpis.Faturamento = TrendValue{
-		Atual: fatAtual, Anterior: fatAnt, Variacao: calcTrend(fatAtual, fatAnt),
-	}
-
-	// 2. Transações
-	kpis.TotalTransacoes = TrendValue{
-		Atual: float64(transAtual), Anterior: float64(transAnt), Variacao: calcTrend(float64(transAtual), float64(transAnt)),
-	}
-
-	// 3. Ticket Médio
-	tmAtual := safeDiv(fatAtual, transAtual)
-	tmAnt := safeDiv(fatAnt, transAnt)
-	kpis.TicketMedio = TrendValue{
-		Atual: tmAtual, Anterior: tmAnt, Variacao: calcTrend(tmAtual, tmAnt),
-	}
-
-	// 4. % Desconto (Variação em Pontos Percentuais)
-	percDescAtual := calcPercDesconto(fatAtual, descAtual)
-	percDescAnt := calcPercDesconto(fatAnt, descAnt)
-	kpis.PercDesconto = TrendValue{
-		Atual: percDescAtual, Anterior: percDescAnt, Variacao: percDescAtual - percDescAnt, // Diferença direta
-	}
-
-	return kpis, nil
+	return pontos, nil
 }
