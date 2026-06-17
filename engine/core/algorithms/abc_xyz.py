@@ -133,3 +133,22 @@ def get_resumo_abc(df_abc: pd.DataFrame) -> pd.DataFrame:
         faturamento   = ("faturamento", "sum"),
         percentual    = ("percentual", "sum"),
     ).round(2).reset_index()
+
+def salvar_abc_postgres(client_key: str, df_abc: pd.DataFrame):
+    """Salva a matriz ABC/XYZ no cache do PostgreSQL para consumo da API Go"""
+    if df_abc is None or df_abc.empty:
+        return
+
+    import logging
+    log = logging.getLogger(__name__)
+    
+    try:
+        from core.db.postgres import get_engine as get_pg_engine
+        engine = get_pg_engine()
+        schema = f"client_{client_key}"
+        
+        # O to_sql com if_exists="replace" recria a tabela limpa automaticamente
+        df_abc.to_sql("abc_xyz_cache", engine, schema=schema, if_exists="replace", index=False)
+        log.info(f"[{client_key}] ABC/XYZ salvo no PostgreSQL (cache).")
+    except Exception as e:
+        log.error(f"[{client_key}] Erro ao salvar ABC/XYZ no PostgreSQL: {e}")

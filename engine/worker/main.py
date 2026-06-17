@@ -2,7 +2,6 @@ import logging
 import os
 import sys
 import time
-from core.algorithms.insights import gerar_insights, salvar_insights, salvar_insights_postgres
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -27,11 +26,12 @@ def run_analytics_for_client(client_key: str):
 
         # ── ABC/XYZ ──────────────────────────────────────────
         log.info(f"{client_key}: calculando ABC/XYZ...")
-        from core.algorithms.abc_xyz import calcular_abc_xyz
+        from core.algorithms.abc_xyz import calcular_abc_xyz, salvar_abc_postgres
         df_itens = engine.get_itens_venda()
         df_abc   = calcular_abc_xyz(df_itens)
         if not df_abc.empty:
             engine.save("abc_resultado", df_abc)
+            salvar_abc_postgres(client_key, df_abc)
             log.info(f"{client_key}: ABC/XYZ salvo — {len(df_abc)} produtos")
 
         # ── RFM ──────────────────────────────────────────────
@@ -45,10 +45,11 @@ def run_analytics_for_client(client_key: str):
 
         # ── Market Basket ────────────────────────────────────
         log.info(f"{client_key}: calculando Market Basket...")
-        from core.algorithms.apriori import calcular_market_basket
+        from core.algorithms.apriori import calcular_market_basket, salvar_basket_postgres
         df_basket = calcular_market_basket(df_itens)
         if not df_basket.empty:
             engine.save("basket_resultado", df_basket)
+            salvar_basket_postgres(client_key, df_basket)
             log.info(f"{client_key}: Basket salvo — {len(df_basket)} regras")
 
         # ── Forecast ─────────────────────────────────────────
@@ -85,6 +86,7 @@ def run_analytics_for_client(client_key: str):
         from core.algorithms.elasticity import (
             calcular_elasticidade,
             calcular_margem_por_produto,
+            salvar_elasticidade_postgres
         )
         df_produtos = engine.get_produtos()
         df_elast    = calcular_elasticidade(df_itens, df_produtos)
@@ -92,13 +94,14 @@ def run_analytics_for_client(client_key: str):
 
         if not df_elast.empty:
             engine.save("elasticidade_resultado", df_elast)
+            salvar_elasticidade_postgres(client_key, df_elast)
         if not df_margem.empty:
             engine.save("margem_resultado", df_margem)
         log.info(f"{client_key}: Elasticidade salva")
 
-        # ── Insights ──────────────────────────────────────────────
+        # ── Insights (Home) ──────────────────────────────────
         log.info(f"{client_key}: gerando insights...")
-        from core.algorithms.insights import gerar_insights, salvar_insights
+        from core.algorithms.insights import gerar_insights, salvar_insights, salvar_insights_postgres
         from core.db.postgres import read_query
 
         try:
@@ -117,10 +120,10 @@ def run_analytics_for_client(client_key: str):
 
         insights, top3 = gerar_insights(client_key, kpis)
         salvar_insights(client_key, insights, top3)
-        salvar_insights_postgres(client_key, top3)
+        salvar_insights_postgres(client_key, insights)
         log.info(f"{client_key}: {len(insights)} insights, {len(top3)} no top3")
 
-        # ── Insights de Vendas (O Novo Motor) ─────────────────────
+        # ── Insights Exclusivos de Vendas ─────────────────────
         log.info(f"{client_key}: gerando insights exclusivos de vendas...")
         from core.algorithms.insights_vendas import (
             gerar_insights_vendas, 

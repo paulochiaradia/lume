@@ -199,3 +199,21 @@ def calcular_margem_por_produto(
     resultado["margem_bruta"]  = resultado["margem_bruta"].round(2)
 
     return resultado.sort_values("margem_bruta", ascending=False)
+
+def salvar_elasticidade_postgres(client_key: str, df_elast: pd.DataFrame):
+    """Salva os dados de elasticidade no cache do PostgreSQL"""
+    if df_elast is None or df_elast.empty:
+        return
+
+    import logging
+    log = logging.getLogger(__name__)
+
+    try:
+        from core.db.postgres import get_engine as get_pg_engine
+        engine = get_pg_engine()
+        schema = f"client_{client_key}"
+        
+        df_elast.to_sql("elasticidade_cache", engine, schema=schema, if_exists="replace", index=False)
+        log.info(f"[{client_key}] Elasticidade salva no PostgreSQL (cache).")
+    except Exception as e:
+        log.error(f"[{client_key}] Erro ao salvar Elasticidade no PostgreSQL: {e}")

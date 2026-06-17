@@ -997,3 +997,238 @@ func GetInsightsVendas(db *sql.DB, clientKey string) ([]Insight, error) {
 	}
 	return insights, nil
 }
+
+// ── ESTRUTURAS PARA O PAINEL DE PRODUTOS ──────────────────────
+
+type CatalogKPIs struct {
+	TotalSKUs       int     `json:"total_skus"`
+	QtdClasseA      int     `json:"qtd_classe_a"`
+	PctFaturamentoA float64 `json:"pct_faturamento_a"`
+	MargemMedia     float64 `json:"margem_media"`
+	DeadStockSKUs   int     `json:"dead_stock_skus"`
+	CapitalParado   float64 `json:"capital_parado"`
+}
+
+type MatrizABCXYZ struct {
+	ClasseABC string `json:"classe_abc"`
+	ClasseXYZ string `json:"classe_xyz"`
+	Qtd       int    `json:"qtd"`
+}
+
+type RankingProduto struct {
+	ID          string  `json:"id"`
+	Nome        string  `json:"nome"`
+	Categoria   string  `json:"categoria"`
+	Faturamento float64 `json:"faturamento"`
+	Margem      float64 `json:"margem"`
+	ClasseABC   string  `json:"classe_abc"`
+	ClasseXYZ   string  `json:"classe_xyz"`
+	Tendencia   string  `json:"tendencia"` // subindo, estavel, caindo
+}
+
+type ElasticidadeProduto struct {
+	ProdutoKey    string  `json:"produto_key"`
+	Elasticidade  float64 `json:"elasticidade"`
+	Interpretacao string  `json:"interpretacao"`
+	Receita       float64 `json:"receita"`
+}
+
+type RegraAssociacao struct {
+	Antecedents string  `json:"antecedents"`
+	Consequents string  `json:"consequents"`
+	Confidence  float64 `json:"confidence"`
+	Lift        float64 `json:"lift"`
+}
+
+type DeadStockProduto struct {
+	Nome          string  `json:"nome"`
+	Quantidade    float64 `json:"quantidade"`
+	PrecoCusto    float64 `json:"preco_custo"`
+	CapitalParado float64 `json:"capital_parado"`
+}
+
+// ── FUNÇÕES DE BUSCA ─────────────────────────────────────────
+
+// 1. KPIs DO CATÁLOGO (SKUs, Margem, Resumo Classe A e Dead Stock agrupados)
+func GetCatalogKPIs(db *sql.DB, clientKey string) (*CatalogKPIs, error) {
+	schema := "client_" + clientKey
+	var kpis CatalogKPIs
+
+	// Total SKUs ativos
+	err := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s.produtos", schema)).Scan(&kpis.TotalSKUs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Classe A da tabela abc_xyz_cache
+	_ = db.QueryRow(fmt.Sprintf(`
+		SELECT COUNT(*), COALESCE(SUM(faturamento), 0) 
+		FROM %s.abc_xyz_cache WHERE classe = 'A'
+	`, schema)).Scan(&kpis.QtdClasseA, &kpis.PctFaturamentoA)
+
+	// Margem média da cache de elasticidade
+	_ = db.QueryRow(fmt.Sprintf("SELECT COALESCE(AVG(pct_margem), 0) FROM %s.margem_resultado", schema)).Scan(&kpis.MargemMedia)
+
+	// Dead Stock (usando a sua query de especificação)
+	_ = db.QueryRow(fmt.Sprintf(`
+		SELECT COUNT(p.id), COALESCE(SUM(e.quantidade * p.preco_custo), 0)
+		FROM %s.produtos p
+		JOIN %s.estoque e ON e.produto_key = p.produto_key
+		LEFT JOIN %s.itens_venda iv ON iv.produto_key = p.produto_key AND iv.data_venda >= NOW() - INTERVAL '90 days'
+		WHERE iv.id IS NULL AND e.quantidade > 0
+	`, schema, schema, schema)).Scan(&kpis.DeadStockSKUs, &kpis.CapitalParado)
+
+	return &kpis, nil
+}
+
+// 2. MATRIZ ABC x XYZ
+func GetMatrizABCXYZ(db *sql.DB, clientKey string) ([]MatrizABCXYZ, error) {
+	schema := "client_" + clientKey
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT classe, xyz, COUNT(*) 
+		FROM %s.abc_xyz_cache 
+		GROUP BY classe, xyz
+	`, schema))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var matriz []MatrizABCXYZ
+	for rows.Next() {
+		var m MatrizABCXYZ
+		if err := rows.Scan(&m.ClasseABC, &m.ClasseXYZ, &m.Qtd); err != nil {
+			continue
+		}
+		matriz = append(matriz, m)
+	}
+	return matriz, nil
+}
+
+// 3. RANKING DE PRODUTOS COM TENDÊNCIA (Window Function comparando últimos 28 dias vs 28 anteriores)
+func GetRankingProdutos(db *sql.DB, clientKey string) ([]RankingProduto, error) {
+	schema := "client_" + clientKey
+	rows, err := db.Query(fmt.Sprintf(`
+		WITH faturamento_periodos AS (
+			SELECT 
+				produto_key,
+				SUM(CASE WHEN data_venda >= NOW() - INTERVAL '28 days' THEN total ELSE 0 END) as fat_atual,
+				SUM(CASE WHEN data_venda >= NOW() - INTERVAL '56 days' AND data_venda < NOW() - INTERVAL '28 days' THEN total ELSE 0 END) as fat_anterior
+			FROM %s.itens_venda
+			GROUP BY produto_key
+		)
+		SELECT 
+			p.produto_key,
+			p.nome,
+			COALESCE(p.categoria, 'Geral'),
+			COALESCE(fp.fat_atual, 0) as faturamento,
+			COALESCE(m.pct_margem, 0) as margem,
+			COALESCE(cache.classe, 'C') as classe_abc,
+			COALESCE(cache.xyz, 'Z') as classe_xyz,
+			CASE 
+				WHEN COALESCE(fp.fat_atual, 0) > COALESCE(fp.fat_anterior, 0) * 1.05 THEN 'subindo'
+				WHEN COALESCE(fp.fat_atual, 0) < COALESCE(fp.fat_anterior, 0) * 0.95 THEN 'caindo'
+				ELSE 'estavel'
+			END as tendencia
+		FROM %s.produtos p
+		LEFT JOIN faturamento_periodos fp ON fp.produto_key = p.produto_key
+		LEFT JOIN %s.abc_xyz_cache cache ON cache.produto_key = p.produto_key
+		LEFT JOIN %s.margem_resultado m ON m.produto_key = p.produto_key
+		ORDER BY faturamento DESC
+	`, schema, schema, schema, schema))
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var lista []RankingProduto
+	for rows.Next() {
+		var rp RankingProduto
+		if err := rows.Scan(
+			&rp.ID, &rp.Nome, &rp.Categoria, &rp.Faturamento,
+			&rp.Margem, &rp.ClasseABC, &rp.ClasseXYZ, &rp.Tendencia,
+		); err != nil {
+			continue
+		}
+		lista = append(lista, rp)
+	}
+	return lista, nil
+}
+
+// 4. ELASTICIDADE DE PREÇO
+func GetElasticidadeProdutos(db *sql.DB, clientKey string) ([]ElasticidadeProduto, error) {
+	schema := "client_" + clientKey
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT produto_key, elasticidade, interpretacao, receita 
+		FROM %s.elasticidade_cache 
+		WHERE receita > 0
+		ORDER BY receita DESC
+	`, schema))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var lista []ElasticidadeProduto
+	for rows.Next() {
+		var ep ElasticidadeProduto
+		if err := rows.Scan(&ep.ProdutoKey, &ep.Elasticidade, &ep.Interpretacao, &ep.Receita); err != nil {
+			continue
+		}
+		lista = append(lista, ep)
+	}
+	return lista, nil
+}
+
+// 5. PRODUTOS COMPRADOS JUNTOS (Market Basket)
+func GetMarketBasketRules(db *sql.DB, clientKey string) ([]RegraAssociacao, error) {
+	schema := "client_" + clientKey
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT antecedents, consequents, confidence * 100, lift 
+		FROM %s.basket_cache 
+		ORDER BY lift DESC
+	`, schema))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var lista []RegraAssociacao
+	for rows.Next() {
+		var ra RegraAssociacao
+		if err := rows.Scan(&ra.Antecedents, &ra.Consequents, &ra.Confidence, &ra.Lift); err != nil {
+			continue
+		}
+		lista = append(lista, ra)
+	}
+	return lista, nil
+}
+
+// 6. DEAD STOCK / PRODUTOS SEM GIRO (Sua Query de Especificação Completa)
+func GetDeadStock(db *sql.DB, clientKey string) ([]DeadStockProduto, error) {
+	schema := "client_" + clientKey
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT p.nome, e.quantidade, p.preco_custo, (e.quantidade * p.preco_custo) as capital_parado
+		FROM %s.produtos p
+		JOIN %s.estoque e ON e.produto_key = p.produto_key
+		LEFT JOIN %s.itens_venda iv ON iv.produto_key = p.produto_key AND iv.data_venda >= NOW() - INTERVAL '90 days'
+		WHERE iv.id IS NULL AND e.quantidade > 0
+		ORDER BY capital_parado DESC
+	`, schema, schema, schema))
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var lista []DeadStockProduto
+	for rows.Next() {
+		var ds DeadStockProduto
+		if err := rows.Scan(&ds.Nome, &ds.Quantidade, &ds.PrecoCusto, &ds.CapitalParado); err != nil {
+			continue
+		}
+		lista = append(lista, ds)
+	}
+	return lista, nil
+}
