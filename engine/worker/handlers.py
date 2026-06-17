@@ -47,7 +47,12 @@ def handle_market_basket(client_key: str):
 @register("elasticidade")
 def handle_elasticidade(client_key: str):
     """Executa análise de Elasticidade/Margem e salva cache no Postgres"""
-    from core.algorithms.elasticity import calcular_elasticidade, calcular_margem_por_produto, salvar_elasticidade_postgres
+    from core.algorithms.elasticity import (
+        calcular_elasticidade, 
+        calcular_margem_por_produto, 
+        salvar_elasticidade_postgres,
+        salvar_margem_postgres # <- IMPORT ADICIONADO AQUI
+    )
     from segments import get_engine
     engine = get_engine(client_key)
     df_itens = engine.get_itens_venda()
@@ -62,6 +67,7 @@ def handle_elasticidade(client_key: str):
         
     if not df_margem.empty:
         engine.save("margem_resultado", df_margem)
+        salvar_margem_postgres(client_key, df_margem) # <- FUNÇÃO CHAMADA AQUI
         
     log.info(f"Elasticidade e Margem concluidas para {client_key}")
 

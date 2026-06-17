@@ -86,7 +86,8 @@ def run_analytics_for_client(client_key: str):
         from core.algorithms.elasticity import (
             calcular_elasticidade,
             calcular_margem_por_produto,
-            salvar_elasticidade_postgres
+            salvar_elasticidade_postgres,
+            salvar_margem_postgres # <- IMPORT ADICIONADO AQUI
         )
         df_produtos = engine.get_produtos()
         df_elast    = calcular_elasticidade(df_itens, df_produtos)
@@ -97,8 +98,8 @@ def run_analytics_for_client(client_key: str):
             salvar_elasticidade_postgres(client_key, df_elast)
         if not df_margem.empty:
             engine.save("margem_resultado", df_margem)
-        log.info(f"{client_key}: Elasticidade salva")
-
+            salvar_margem_postgres(client_key, df_margem) # <- FUNÇÃO CHAMADA AQUI
+            
         # ── Insights (Home) ──────────────────────────────────
         log.info(f"{client_key}: gerando insights...")
         from core.algorithms.insights import gerar_insights, salvar_insights, salvar_insights_postgres

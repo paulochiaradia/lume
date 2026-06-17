@@ -217,3 +217,15 @@ def salvar_elasticidade_postgres(client_key: str, df_elast: pd.DataFrame):
         log.info(f"[{client_key}] Elasticidade salva no PostgreSQL (cache).")
     except Exception as e:
         log.error(f"[{client_key}] Erro ao salvar Elasticidade no PostgreSQL: {e}")
+
+def salvar_margem_postgres(client_key: str, df_margem):
+    """Salva a margem no cache do PostgreSQL"""
+    if df_margem is None or df_margem.empty:
+        return
+    try:
+        from core.db.postgres import get_engine as get_pg_engine
+        engine = get_pg_engine()
+        schema = f"client_{client_key}"
+        df_margem.to_sql("margem_cache", engine, schema=schema, if_exists="replace", index=False)
+    except Exception as e:
+        pass

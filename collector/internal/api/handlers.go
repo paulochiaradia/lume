@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -519,6 +520,7 @@ func (s *Server) handleProdutosMatriz(w http.ResponseWriter, r *http.Request) {
 }
 
 // 3. RANKING DE PRODUTOS COM TENDÊNCIA
+// 3. RANKING DE PRODUTOS COM TENDÊNCIA
 func (s *Server) handleProdutosRanking(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	if claims == nil {
@@ -528,6 +530,9 @@ func (s *Server) handleProdutosRanking(w http.ResponseWriter, r *http.Request) {
 
 	ranking, err := db.GetRankingProdutos(s.db, claims.ClientKey)
 	if err != nil {
+		// ESSA É A LINHA MÁGICA QUE VAI NOS DAR A RESPOSTA:
+		fmt.Printf("\n!!! ERRO NO SQL DO RANKING: %v !!!\n\n", err)
+
 		writeError(w, http.StatusInternalServerError, "erro ao carregar ranking de produtos")
 		return
 	}

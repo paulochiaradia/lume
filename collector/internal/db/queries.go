@@ -1049,34 +1049,34 @@ type DeadStockProduto struct {
 
 // ── FUNÇÕES DE BUSCA ─────────────────────────────────────────
 
-// 1. KPIs DO CATÁLOGO (SKUs, Margem, Resumo Classe A e Dead Stock agrupados)
+// 1. KPIs DO CATÁLOGO
 func GetCatalogKPIs(db *sql.DB, clientKey string) (*CatalogKPIs, error) {
 	schema := "client_" + clientKey
 	var kpis CatalogKPIs
 
-	// Total SKUs ativos
-	err := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s.produtos", schema)).Scan(&kpis.TotalSKUs)
-	if err != nil {
-		return nil, err
-	}
+	_ = db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s.produtos", schema)).Scan(&kpis.TotalSKUs)
 
-	// Classe A da tabela abc_xyz_cache
 	_ = db.QueryRow(fmt.Sprintf(`
 		SELECT COUNT(*), COALESCE(SUM(faturamento), 0) 
 		FROM %s.abc_xyz_cache WHERE classe = 'A'
 	`, schema)).Scan(&kpis.QtdClasseA, &kpis.PctFaturamentoA)
 
-	// Margem média da cache de elasticidade
-	_ = db.QueryRow(fmt.Sprintf("SELECT COALESCE(AVG(pct_margem), 0) FROM %s.margem_resultado", schema)).Scan(&kpis.MargemMedia)
+	// Alterado para ler da nova tabela margem_cache
+	_ = db.QueryRow(fmt.Sprintf("SELECT COALESCE(AVG(pct_margem), 0) FROM %s.margem_cache", schema)).Scan(&kpis.MargemMedia)
 
-	// Dead Stock (usando a sua query de especificação)
+	// Corrigido: Usando subquery com JOIN na tabela vendas para pegar a data correta
 	_ = db.QueryRow(fmt.Sprintf(`
 		SELECT COUNT(p.id), COALESCE(SUM(e.quantidade * p.preco_custo), 0)
 		FROM %s.produtos p
 		JOIN %s.estoque e ON e.produto_key = p.produto_key
-		LEFT JOIN %s.itens_venda iv ON iv.produto_key = p.produto_key AND iv.data_venda >= NOW() - INTERVAL '90 days'
-		WHERE iv.id IS NULL AND e.quantidade > 0
-	`, schema, schema, schema)).Scan(&kpis.DeadStockSKUs, &kpis.CapitalParado)
+		LEFT JOIN (
+			SELECT DISTINCT iv.produto_key 
+			FROM %s.itens_venda iv 
+			JOIN %s.vendas v ON v.id = iv.venda_id 
+			WHERE v.data_venda >= NOW() - INTERVAL '90 days'
+		) recentes ON recentes.produto_key = p.produto_key
+		WHERE recentes.produto_key IS NULL AND e.quantidade > 0
+	`, schema, schema, schema, schema)).Scan(&kpis.DeadStockSKUs, &kpis.CapitalParado)
 
 	return &kpis, nil
 }
@@ -1084,10 +1084,11 @@ func GetCatalogKPIs(db *sql.DB, clientKey string) (*CatalogKPIs, error) {
 // 2. MATRIZ ABC x XYZ
 func GetMatrizABCXYZ(db *sql.DB, clientKey string) ([]MatrizABCXYZ, error) {
 	schema := "client_" + clientKey
+	// Corrigido: classe_xyz ao invés de xyz
 	rows, err := db.Query(fmt.Sprintf(`
-		SELECT classe, xyz, COUNT(*) 
+		SELECT classe, classe_xyz, COUNT(*) 
 		FROM %s.abc_xyz_cache 
-		GROUP BY classe, xyz
+		GROUP BY classe, classe_xyz
 	`, schema))
 	if err != nil {
 		return nil, err
@@ -1105,26 +1106,27 @@ func GetMatrizABCXYZ(db *sql.DB, clientKey string) ([]MatrizABCXYZ, error) {
 	return matriz, nil
 }
 
-// 3. RANKING DE PRODUTOS COM TENDÊNCIA (Window Function comparando últimos 28 dias vs 28 anteriores)
+// 3. RANKING DE PRODUTOS COM TENDÊNCIA
 func GetRankingProdutos(db *sql.DB, clientKey string) ([]RankingProduto, error) {
 	schema := "client_" + clientKey
 	rows, err := db.Query(fmt.Sprintf(`
 		WITH faturamento_periodos AS (
 			SELECT 
-				produto_key,
-				SUM(CASE WHEN data_venda >= NOW() - INTERVAL '28 days' THEN total ELSE 0 END) as fat_atual,
-				SUM(CASE WHEN data_venda >= NOW() - INTERVAL '56 days' AND data_venda < NOW() - INTERVAL '28 days' THEN total ELSE 0 END) as fat_anterior
-			FROM %s.itens_venda
-			GROUP BY produto_key
+				iv.produto_key,
+				SUM(CASE WHEN v.data_venda >= NOW() - INTERVAL '28 days' THEN iv.total ELSE 0 END) as fat_atual,
+				SUM(CASE WHEN v.data_venda >= NOW() - INTERVAL '56 days' AND v.data_venda < NOW() - INTERVAL '28 days' THEN iv.total ELSE 0 END) as fat_anterior
+			FROM %s.itens_venda iv
+			JOIN %s.vendas v ON v.id = iv.venda_id
+			GROUP BY iv.produto_key
 		)
 		SELECT 
 			p.produto_key,
 			p.nome,
-			COALESCE(p.categoria, 'Geral'),
+			COALESCE(p.categoria, 'Geral') as categoria,
 			COALESCE(fp.fat_atual, 0) as faturamento,
 			COALESCE(m.pct_margem, 0) as margem,
 			COALESCE(cache.classe, 'C') as classe_abc,
-			COALESCE(cache.xyz, 'Z') as classe_xyz,
+			COALESCE(cache.classe_xyz, 'Z') as classe_xyz,
 			CASE 
 				WHEN COALESCE(fp.fat_atual, 0) > COALESCE(fp.fat_anterior, 0) * 1.05 THEN 'subindo'
 				WHEN COALESCE(fp.fat_atual, 0) < COALESCE(fp.fat_anterior, 0) * 0.95 THEN 'caindo'
@@ -1133,11 +1135,13 @@ func GetRankingProdutos(db *sql.DB, clientKey string) ([]RankingProduto, error) 
 		FROM %s.produtos p
 		LEFT JOIN faturamento_periodos fp ON fp.produto_key = p.produto_key
 		LEFT JOIN %s.abc_xyz_cache cache ON cache.produto_key = p.produto_key
-		LEFT JOIN %s.margem_resultado m ON m.produto_key = p.produto_key
+		LEFT JOIN %s.margem_cache m ON m.produto_key = p.produto_key
 		ORDER BY faturamento DESC
-	`, schema, schema, schema, schema))
+	`, schema, schema, schema, schema, schema))
 
 	if err != nil {
+		// Se a query falhar, o Go vai gritar o motivo no terminal
+		fmt.Printf("\n[ERRO DB] Falha na query de ranking: %v\n", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -1149,6 +1153,8 @@ func GetRankingProdutos(db *sql.DB, clientKey string) ([]RankingProduto, error) 
 			&rp.ID, &rp.Nome, &rp.Categoria, &rp.Faturamento,
 			&rp.Margem, &rp.ClasseABC, &rp.ClasseXYZ, &rp.Tendencia,
 		); err != nil {
+			// Se a conversão dos dados falhar, o Go vai gritar o motivo aqui
+			fmt.Printf("\n[ERRO SCAN] Falha ao ler linha do ranking: %v\n", err)
 			continue
 		}
 		lista = append(lista, rp)
@@ -1159,11 +1165,12 @@ func GetRankingProdutos(db *sql.DB, clientKey string) ([]RankingProduto, error) 
 // 4. ELASTICIDADE DE PREÇO
 func GetElasticidadeProdutos(db *sql.DB, clientKey string) ([]ElasticidadeProduto, error) {
 	schema := "client_" + clientKey
+	// Corrigido: tipo as interpretacao e receita_total as receita
 	rows, err := db.Query(fmt.Sprintf(`
-		SELECT produto_key, elasticidade, interpretacao, receita 
+		SELECT produto_key, elasticidade, tipo as interpretacao, receita_total as receita 
 		FROM %s.elasticidade_cache 
-		WHERE receita > 0
-		ORDER BY receita DESC
+		WHERE receita_total > 0
+		ORDER BY receita_total DESC
 	`, schema))
 	if err != nil {
 		return nil, err
@@ -1205,17 +1212,23 @@ func GetMarketBasketRules(db *sql.DB, clientKey string) ([]RegraAssociacao, erro
 	return lista, nil
 }
 
-// 6. DEAD STOCK / PRODUTOS SEM GIRO (Sua Query de Especificação Completa)
+// 6. DEAD STOCK / PRODUTOS SEM GIRO
 func GetDeadStock(db *sql.DB, clientKey string) ([]DeadStockProduto, error) {
 	schema := "client_" + clientKey
+	// Corrigido: Usando subquery com JOIN na tabela vendas
 	rows, err := db.Query(fmt.Sprintf(`
 		SELECT p.nome, e.quantidade, p.preco_custo, (e.quantidade * p.preco_custo) as capital_parado
 		FROM %s.produtos p
 		JOIN %s.estoque e ON e.produto_key = p.produto_key
-		LEFT JOIN %s.itens_venda iv ON iv.produto_key = p.produto_key AND iv.data_venda >= NOW() - INTERVAL '90 days'
-		WHERE iv.id IS NULL AND e.quantidade > 0
+		LEFT JOIN (
+			SELECT DISTINCT iv.produto_key 
+			FROM %s.itens_venda iv 
+			JOIN %s.vendas v ON v.id = iv.venda_id 
+			WHERE v.data_venda >= NOW() - INTERVAL '90 days'
+		) recentes ON recentes.produto_key = p.produto_key
+		WHERE recentes.produto_key IS NULL AND e.quantidade > 0
 		ORDER BY capital_parado DESC
-	`, schema, schema, schema))
+	`, schema, schema, schema, schema))
 
 	if err != nil {
 		return nil, err
