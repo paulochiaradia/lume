@@ -196,32 +196,41 @@ type HomeKPIs struct {
 	Faturamento   float64 `json:"faturamento"`
 	TicketMedio   float64 `json:"ticket_medio"`
 	TotalVendas   int     `json:"total_vendas"`
-	TotalDesconto float64 `json:"total_desconto"`
+	ItensPorVenda float64 `json:"itens_por_venda"`
 }
 
-func GetHomeKPIs(db *sql.DB, clientKey string) (*HomeKPIs, error) {
+// GetHomeKPIs busca os indicadores do mês atual
+func GetHomeKPIs(db *sql.DB, clientKey string, startTime time.Time) (HomeKPIs, error) {
 	schema := "client_" + clientKey
-	var kpis HomeKPIs
 
-	err := db.QueryRow(fmt.Sprintf(`
+	query := fmt.Sprintf(`
 		SELECT
-			COALESCE(SUM(total), 0),
-			COALESCE(AVG(total), 0),
-			COUNT(*),
-			COALESCE(SUM(desconto), 0)
+			COALESCE(SUM(total), 0) as faturamento,
+			COALESCE(AVG(total), 0) as ticket_medio,
+			COUNT(id) as total_vendas,
+			COALESCE((
+				SELECT SUM(iv.quantidade)
+				FROM %s.itens_venda iv
+				JOIN %s.vendas v2 ON v2.id = iv.venda_id
+				WHERE v2.status = 'concluida' AND v2.data_venda >= $1
+			) / NULLIF(COUNT(id), 0), 0) as itens_por_venda
 		FROM %s.vendas
-		WHERE status = 'concluida'
-	`, schema)).Scan(
+		WHERE status = 'concluida' 
+		  AND data_venda >= $1
+	`, schema, schema, schema)
+
+	var kpis HomeKPIs
+	err := db.QueryRow(query, startTime).Scan(
 		&kpis.Faturamento,
 		&kpis.TicketMedio,
 		&kpis.TotalVendas,
-		&kpis.TotalDesconto,
+		&kpis.ItensPorVenda,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao buscar KPIs: %w", err)
+		return kpis, fmt.Errorf("erro ao buscar kpis: %w", err)
 	}
 
-	return &kpis, nil
+	return kpis, nil
 }
 
 // ── Vendas ───────────────────────────────────────────────────
@@ -264,7 +273,8 @@ type VendaDia struct {
 	Faturamento float64 `json:"faturamento"`
 }
 
-func GetVendasPorDia(db *sql.DB, clientKey string) ([]VendaDia, error) {
+// GetVendasPorDia busca as vendas agrupadas por dia a partir de uma data inicial
+func GetVendasPorDia(db *sql.DB, clientKey string, startTime time.Time) ([]VendaDia, error) {
 	schema := "client_" + clientKey
 
 	rows, err := db.Query(fmt.Sprintf(`
@@ -274,15 +284,49 @@ func GetVendasPorDia(db *sql.DB, clientKey string) ([]VendaDia, error) {
 			COALESCE(SUM(total), 0)
 		FROM %s.vendas
 		WHERE status = 'concluida'
+		  AND data_venda >= $1
 		GROUP BY DATE(data_venda)
-		ORDER BY DATE(data_venda)
-	`, schema))
+		ORDER BY DATE(data_venda) ASC
+	`, schema), startTime)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao buscar vendas por dia: %w", err)
 	}
 	defer rows.Close()
 
-	var vendas []VendaDia
+	vendas := []VendaDia{}
+	for rows.Next() {
+		var v VendaDia
+		if err := rows.Scan(&v.Dia, &v.Vendas, &v.Faturamento); err != nil {
+			continue
+		}
+		vendas = append(vendas, v)
+	}
+
+	return vendas, nil
+}
+
+// GetTopDias retorna os 5 dias com maior faturamento dentro da janela selecionada
+func GetTopDias(db *sql.DB, clientKey string, startTime time.Time) ([]VendaDia, error) {
+	schema := "client_" + clientKey
+
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT
+			DATE(data_venda)::text,
+			COUNT(*),
+			COALESCE(SUM(total), 0) as faturamento
+		FROM %s.vendas
+		WHERE status = 'concluida'
+		  AND data_venda >= $1
+		GROUP BY DATE(data_venda)
+		ORDER BY faturamento DESC
+		LIMIT 5
+	`, schema), startTime)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar top dias: %w", err)
+	}
+	defer rows.Close()
+
+	vendas := []VendaDia{}
 	for rows.Next() {
 		var v VendaDia
 		if err := rows.Scan(&v.Dia, &v.Vendas, &v.Faturamento); err != nil {
@@ -587,4 +631,234 @@ func GetEstoqueCompleto(db *sql.DB, clientKey string) ([]EstoqueItem, error) {
 	}
 
 	return itens, nil
+}
+
+// ── Insights ─────────────────────────────────────────────────
+
+type Insight struct {
+	Tipo       string `json:"tipo"`
+	Prioridade int    `json:"prioridade"`
+	Titulo     string `json:"titulo"`
+	Mensagem   string `json:"mensagem"`
+	Acao       string `json:"acao"`
+	Href       string `json:"href"`
+	Categoria  string `json:"categoria"`
+	Icone      string `json:"icone"`
+	GeradoEm   string `json:"gerado_em"`
+}
+
+func GetInsights(db *sql.DB, clientKey string) ([]Insight, error) {
+	schema := "client_" + clientKey
+
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT
+			COALESCE(tipo, ''),
+			COALESCE(prioridade::int, 99),
+			COALESCE(titulo, ''),
+			COALESCE(mensagem, ''),
+			COALESCE(acao, ''),
+			COALESCE(href, ''),
+			COALESCE(categoria, ''),
+			COALESCE(icone, 'success'),
+			COALESCE(gerado_em::text, NOW()::text)
+		FROM %s.insights_cache
+		ORDER BY prioridade ASC
+		LIMIT 10
+	`, schema))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar insights: %w", err)
+	}
+	defer rows.Close()
+
+	var insights []Insight
+	for rows.Next() {
+		var i Insight
+		if err := rows.Scan(
+			&i.Tipo, &i.Prioridade, &i.Titulo,
+			&i.Mensagem, &i.Acao, &i.Href,
+			&i.Categoria, &i.Icone, &i.GeradoEm,
+		); err != nil {
+			continue
+		}
+		insights = append(insights, i)
+	}
+
+	return insights, nil
+}
+
+// ── Vendas por Hora (Pico de Atendimento) ────────────────────
+
+type VendaHora struct {
+	Hora        string  `json:"hora"`
+	Faturamento float64 `json:"faturamento"`
+}
+
+func GetVendasPorHora(db *sql.DB, clientKey string, startTime time.Time) ([]VendaHora, error) {
+	schema := "client_" + clientKey
+
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT
+			TO_CHAR(data_venda, 'HH24:00') as hora,
+			COALESCE(SUM(total), 0) as faturamento
+		FROM %s.vendas
+		WHERE status = 'concluida' 
+		  AND data_venda >= $1
+		GROUP BY TO_CHAR(data_venda, 'HH24:00')
+		ORDER BY hora ASC
+	`, schema), startTime)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar vendas por hora: %w", err)
+	}
+	defer rows.Close()
+
+	var vendas []VendaHora
+	for rows.Next() {
+		var v VendaHora
+		if err := rows.Scan(&v.Hora, &v.Faturamento); err != nil {
+			continue
+		}
+		vendas = append(vendas, v)
+	}
+
+	return vendas, nil
+}
+
+// ── Mix de Vendas por Categoria (Doughnut Chart) ─────────────
+
+type MixCategoria struct {
+	Categoria   string  `json:"categoria"`
+	Faturamento float64 `json:"faturamento"`
+}
+
+func GetMixCategorias(db *sql.DB, clientKey string, startTime time.Time) ([]MixCategoria, error) {
+	schema := "client_" + clientKey
+
+	// Fazemos o JOIN com 'vendas' para filtrar pela data e status
+	// e com 'produtos' para pegar o nome da categoria
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT
+			COALESCE(p.categoria, 'Sem Categoria') as categoria,
+			COALESCE(SUM(iv.total), 0) as faturamento
+		FROM %s.itens_venda iv
+		JOIN %s.vendas v ON iv.venda_id = v.id
+		LEFT JOIN %s.produtos p ON p.produto_key = iv.produto_key
+		WHERE v.status = 'concluida' 
+		  AND v.data_venda >= $1
+		GROUP BY COALESCE(p.categoria, 'Sem Categoria')
+		ORDER BY faturamento DESC
+		LIMIT 5
+	`, schema, schema, schema), startTime)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar mix de categorias: %w", err)
+	}
+	defer rows.Close()
+
+	var categorias []MixCategoria
+	for rows.Next() {
+		var c MixCategoria
+		if err := rows.Scan(&c.Categoria, &c.Faturamento); err != nil {
+			continue
+		}
+		categorias = append(categorias, c)
+	}
+
+	return categorias, nil
+}
+
+// TrendValue armazena o valor atual, o passado e o crescimento percentual
+type TrendValue struct {
+	Atual    float64 `json:"atual"`
+	Anterior float64 `json:"anterior"`
+	Variacao float64 `json:"variacao"`
+}
+
+// VendasKPIsTrend representa o Bloco 1 da página de Vendas
+type VendasKPIsTrend struct {
+	Faturamento     TrendValue `json:"faturamento"`
+	TicketMedio     TrendValue `json:"ticket_medio"`
+	TotalTransacoes TrendValue `json:"total_transacoes"`
+	PercDesconto    TrendValue `json:"perc_desconto"`
+}
+
+// GetVendasKPIsTrend calcula os KPIs comparando o período atual com o anterior
+func GetVendasKPIsTrend(db *sql.DB, clientKey string, currentStart, previousStart time.Time) (VendasKPIsTrend, error) {
+	schema := "client_" + clientKey
+	var kpis VendasKPIsTrend
+
+	query := fmt.Sprintf(`
+		SELECT
+			-- Período Atual
+			COALESCE(SUM(total) FILTER (WHERE data_venda >= $1), 0) as fat_atual,
+			COUNT(id) FILTER (WHERE data_venda >= $1) as trans_atual,
+			COALESCE(SUM(desconto) FILTER (WHERE data_venda >= $1), 0) as desc_atual,
+
+			-- Período Anterior
+			COALESCE(SUM(total) FILTER (WHERE data_venda >= $2 AND data_venda < $1), 0) as fat_ant,
+			COUNT(id) FILTER (WHERE data_venda >= $2 AND data_venda < $1) as trans_ant,
+			COALESCE(SUM(desconto) FILTER (WHERE data_venda >= $2 AND data_venda < $1), 0) as desc_ant
+		FROM %s.vendas
+		WHERE status = 'concluida' AND data_venda >= $2
+	`, schema)
+
+	var fatAtual, descAtual, fatAnt, descAnt float64
+	var transAtual, transAnt int
+
+	err := db.QueryRow(query, currentStart, previousStart).Scan(
+		&fatAtual, &transAtual, &descAtual,
+		&fatAnt, &transAnt, &descAnt,
+	)
+	if err != nil {
+		return kpis, fmt.Errorf("erro na query de tendencia: %w", err)
+	}
+
+	// Helpers de cálculo seguro (evita divisão por zero)
+	safeDiv := func(a float64, b int) float64 {
+		if b == 0 {
+			return 0
+		}
+		return a / float64(b)
+	}
+
+	calcTrend := func(atual, anterior float64) float64 {
+		if anterior == 0 {
+			if atual > 0 {
+				return 100.0
+			}
+			return 0.0
+		}
+		return ((atual - anterior) / anterior) * 100.0
+	}
+
+	calcPercDesconto := func(fat, desc float64) float64 {
+		if (fat + desc) == 0 {
+			return 0
+		}
+		return (desc / (fat + desc)) * 100.0
+	}
+
+	// 1. Faturamento
+	kpis.Faturamento = TrendValue{
+		Atual: fatAtual, Anterior: fatAnt, Variacao: calcTrend(fatAtual, fatAnt),
+	}
+
+	// 2. Transações
+	kpis.TotalTransacoes = TrendValue{
+		Atual: float64(transAtual), Anterior: float64(transAnt), Variacao: calcTrend(float64(transAtual), float64(transAnt)),
+	}
+
+	// 3. Ticket Médio
+	tmAtual := safeDiv(fatAtual, transAtual)
+	tmAnt := safeDiv(fatAnt, transAnt)
+	kpis.TicketMedio = TrendValue{
+		Atual: tmAtual, Anterior: tmAnt, Variacao: calcTrend(tmAtual, tmAnt),
+	}
+
+	// 4. % Desconto (Variação em Pontos Percentuais)
+	percDescAtual := calcPercDesconto(fatAtual, descAtual)
+	percDescAnt := calcPercDesconto(fatAnt, descAnt)
+	kpis.PercDesconto = TrendValue{
+		Atual: percDescAtual, Anterior: percDescAnt, Variacao: percDescAtual - percDescAnt, // Diferença direta
+	}
+
+	return kpis, nil
 }

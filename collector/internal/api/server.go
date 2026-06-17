@@ -65,7 +65,11 @@ func (s *Server) setupRouter() *chi.Mux {
 
 	// ── CORS ─────────────────────────────────────────────────
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost", "http://localhost:8501"},
+		AllowedOrigins: []string{
+			"http://localhost",
+			"http://localhost:3000",
+			"http://localhost:8501",
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		ExposedHeaders:   []string{"Link"},
@@ -99,7 +103,14 @@ func (s *Server) setupRouter() *chi.Mux {
 
 			// Vendas
 			r.Get("/vendas/resumo", s.handleVendasResumo)
-			r.Get("/vendas/por-dia", s.handleVendasPorDia)
+			r.Get("/vendas/por-dia", s.handleVendasPorDia)             // ← A Home usa esse
+			r.Get("/vendas/tendencia-diaria", s.handleTendenciaDiaria) // ← A página de Vendas usa esse!
+			r.Get("/vendas/top-dias", s.handleTopDias)                 // ← Agora ele existe e não vai dar erro
+			r.Get("/vendas/por-hora", s.handleVendasPorHora)
+			r.Get("/vendas/mix", s.handleMixVendas)
+			r.Get("/vendas/kpis", s.handleVendasKPIs)
+			r.Get("/vendas/ranking-vendedores", s.handleRankingVendedores)
+			r.Get("/vendas/heatmap", s.handleVendasHeatmap)
 
 			// Estoque
 			r.Get("/estoque/alertas", s.handleEstoqueAlertas)
@@ -111,6 +122,10 @@ func (s *Server) setupRouter() *chi.Mux {
 			// Clientes
 			r.Get("/clientes/rfm", s.handleClientesRFM)
 			r.Get("/clientes/segmentos", s.handleResumoSegmentos)
+
+			// Insights
+			r.Get("/insights", s.handleInsights)
+
 		})
 	})
 

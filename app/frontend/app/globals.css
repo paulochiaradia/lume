@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Cores ─────────────────────────────────────────────── */
+  --color-surface:                   #f8f9ff;
+  --color-surface-bright:            #f8f9ff;
+  --color-surface-dim:               #cbdbf5;
+  --color-surface-variant:           #d3e4fe;
+  --color-surface-container-lowest:  #ffffff;
+  --color-surface-container-low:     #eff4ff;
+  --color-surface-container:         #e5eeff;
+  --color-surface-container-high:    #dce9ff;
+  --color-surface-container-highest: #d3e4fe;
+  --color-background:                #f8f9ff;
+  --color-on-background:             #0b1c30;
+  --color-on-surface:                #0b1c30;
+  --color-on-surface-variant:        #45464d;
+  --color-outline:                   #76777d;
+  --color-outline-variant:           #c6c6cd;
+  --color-primary:                   #000000;
+  --color-on-primary:                #ffffff;
+  --color-primary-container:         #131b2e;
+  --color-on-primary-container:      #7c839b;
+  --color-primary-fixed:             #dae2fd;
+  --color-primary-fixed-dim:         #bec6e0;
+  --color-on-primary-fixed:          #131b2e;
+  --color-on-primary-fixed-variant:  #3f465c;
+  --color-inverse-primary:           #bec6e0;
+  --color-secondary:                 #0051d5;
+  --color-on-secondary:              #ffffff;
+  --color-secondary-container:       #316bf3;
+  --color-on-secondary-container:    #fefcff;
+  --color-secondary-fixed:           #dbe1ff;
+  --color-secondary-fixed-dim:       #b4c5ff;
+  --color-on-secondary-fixed:        #00174b;
+  --color-on-secondary-fixed-variant:#003ea8;
+  --color-error:                     #ba1a1a;
+  --color-on-error:                  #ffffff;
+  --color-error-container:           #ffdad6;
+  --color-on-error-container:        #93000a;
+  --color-inverse-surface:           #213145;
+  --color-inverse-on-surface:        #eaf1ff;
+  --color-surface-tint:              #565e74;
+
+/* ── Tipografia ─────────────────────────────────────────── */
+--font-display:  var(--font-hanken);
+--font-headline: var(--font-hanken);
+--font-body:     var(--font-inter);
+--font-label:    var(--font-inter);
+--font-data:     var(--font-inter);
+
+  /* ── Border radius ──────────────────────────────────────── */
+  --radius-sm:   0.125rem;
+  --radius:      0.25rem;
+  --radius-lg:   0.5rem;
+  --radius-full: 0.75rem;
+
+  /* ── Sombras ────────────────────────────────────────────── */
+  --shadow-card: 0px 4px 20px rgba(15, 23, 42, 0.08);
+  --shadow-sm:   0px 1px 4px rgba(15, 23, 42, 0.06);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+
+  /* Scrollbar customizada */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-surface-container-low);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-outline-variant);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-outline);
+  }
+}
