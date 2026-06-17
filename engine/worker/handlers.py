@@ -51,3 +51,28 @@ def handle_insights(client_key: str):
     salvar_insights(client_key, insights, top3)
     salvar_insights_postgres(client_key, top3)
     log.info(f"{client_key}: {len(insights)} insights, {len(top3)} no top3")
+
+@register("insights_vendas")   
+def handle_insights_vendas(client_key: str):
+    """Gera insights priorizados e rotacionados exclusivos para o painel de Vendas"""
+    from core.algorithms.insights_vendas import gerar_insights_vendas, salvar_insights_vendas, salvar_insights_vendas_postgres
+    from core.db.postgres import read_query
+
+    try:
+        df_kpis = read_query(client_key, f"""
+            SELECT
+                COALESCE(SUM(total), 0)    AS faturamento,
+                COALESCE(AVG(total), 0)    AS ticket_medio,
+                COUNT(*)                   AS total_vendas,
+                COALESCE(SUM(desconto), 0) AS total_desconto
+            FROM client_{client_key}.vendas
+            WHERE status = 'concluida'
+        """)
+        kpis = df_kpis.iloc[0].to_dict() if not df_kpis.empty else {}
+    except Exception:
+        kpis = {}
+
+    insights, top3 = gerar_insights_vendas(client_key, kpis)
+    salvar_insights_vendas(client_key, insights, top3)
+    salvar_insights_vendas_postgres(client_key, top3)
+    log.info(f"Insights de Vendas concluidos para {client_key}: {len(insights)} gerados, {len(top3)} no top3")

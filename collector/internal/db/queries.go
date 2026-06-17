@@ -957,3 +957,43 @@ func GetVendasHeatmap(db *sql.DB, clientKey string, startTime time.Time) ([]Heat
 
 	return pontos, nil
 }
+
+// GetInsightsVendas busca os 3 insights mais urgentes específicos da categoria vendas
+func GetInsightsVendas(db *sql.DB, clientKey string) ([]Insight, error) {
+	schema := "client_" + clientKey
+
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT
+			COALESCE(tipo, ''),
+			COALESCE(prioridade::int, 99),
+			COALESCE(titulo, ''),
+			COALESCE(mensagem, ''),
+			COALESCE(acao, ''),
+			COALESCE(href, ''),
+			COALESCE(categoria, ''),
+			COALESCE(icone, 'success'),
+			COALESCE(gerado_em::text, NOW()::text)
+		FROM %s.insights_cache
+		WHERE categoria = 'vendas'
+		ORDER BY prioridade ASC
+		LIMIT 3
+	`, schema))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar insights de vendas: %w", err)
+	}
+	defer rows.Close()
+
+	var insights []Insight
+	for rows.Next() {
+		var i Insight
+		if err := rows.Scan(
+			&i.Tipo, &i.Prioridade, &i.Titulo,
+			&i.Mensagem, &i.Acao, &i.Href,
+			&i.Categoria, &i.Icone, &i.GeradoEm,
+		); err != nil {
+			continue
+		}
+		insights = append(insights, i)
+	}
+	return insights, nil
+}
