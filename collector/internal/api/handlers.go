@@ -466,3 +466,20 @@ func (s *Server) handleVendasHeatmap(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, heatmap)
 }
+
+// HANDLER EXCLUSIVO PARA INSIGHTS DE VENDAS
+func (s *Server) handleVendasInsights(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	insights, err := db.GetInsightsVendas(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar insights de vendas")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, insights)
+}
