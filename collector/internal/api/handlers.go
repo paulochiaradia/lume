@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -482,4 +483,106 @@ func (s *Server) handleVendasInsights(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, insights)
+}
+
+// ── HANDLERS EXCLUSIVOS DO PAINEL DE PRODUTOS ────────────────
+
+// 1. KPIs DO CATÁLOGO
+func (s *Server) handleProdutosKPIs(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	kpis, err := db.GetCatalogKPIs(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar KPIs do catálogo")
+		return
+	}
+	writeJSON(w, http.StatusOK, kpis)
+}
+
+// 2. MATRIZ ABC x XYZ
+func (s *Server) handleProdutosMatriz(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	matriz, err := db.GetMatrizABCXYZ(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar matriz ABC/XYZ")
+		return
+	}
+	writeJSON(w, http.StatusOK, matriz)
+}
+
+// 3. RANKING DE PRODUTOS COM TENDÊNCIA
+// 3. RANKING DE PRODUTOS COM TENDÊNCIA
+func (s *Server) handleProdutosRanking(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	ranking, err := db.GetRankingProdutos(s.db, claims.ClientKey)
+	if err != nil {
+		// ESSA É A LINHA MÁGICA QUE VAI NOS DAR A RESPOSTA:
+		fmt.Printf("\n!!! ERRO NO SQL DO RANKING: %v !!!\n\n", err)
+
+		writeError(w, http.StatusInternalServerError, "erro ao carregar ranking de produtos")
+		return
+	}
+	writeJSON(w, http.StatusOK, ranking)
+}
+
+// 4. ELASTICIDADE DE PREÇO
+func (s *Server) handleProdutosElasticidade(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	elasticidade, err := db.GetElasticidadeProdutos(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar dados de elasticidade")
+		return
+	}
+	writeJSON(w, http.StatusOK, elasticidade)
+}
+
+// 5. PRODUTOS COMPRADOS JUNTOS (Market Basket)
+func (s *Server) handleProdutosBasket(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	regras, err := db.GetMarketBasketRules(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar regras de associação")
+		return
+	}
+	writeJSON(w, http.StatusOK, regras)
+}
+
+// 6. DEAD STOCK / SEM GIRO
+func (s *Server) handleProdutosDeadStock(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	deadStock, err := db.GetDeadStock(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar relatório de dead stock")
+		return
+	}
+	writeJSON(w, http.StatusOK, deadStock)
 }

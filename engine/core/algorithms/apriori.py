@@ -124,3 +124,24 @@ def get_top_regras(df_regras: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     if df_regras.empty:
         return pd.DataFrame()
     return df_regras.head(top_n)
+
+def salvar_basket_postgres(client_key: str, df_basket: pd.DataFrame):
+    """Salva o Top 50 regras de Market Basket no cache do PostgreSQL"""
+    if df_basket is None or df_basket.empty:
+        return
+
+    import logging
+    log = logging.getLogger(__name__)
+
+    try:
+        from core.db.postgres import get_engine as get_pg_engine
+        engine = get_pg_engine()
+        schema = f"client_{client_key}"
+        
+        # Pegamos apenas o Top 50 ordenado pelo lift para não inchar o PostgreSQL
+        top_rules = df_basket.sort_values("lift", ascending=False).head(50)
+        
+        top_rules.to_sql("basket_cache", engine, schema=schema, if_exists="replace", index=False)
+        log.info(f"[{client_key}] Market Basket (Top 50) salvo no PostgreSQL (cache).")
+    except Exception as e:
+        log.error(f"[{client_key}] Erro ao salvar Market Basket no PostgreSQL: {e}")

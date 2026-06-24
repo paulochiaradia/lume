@@ -119,6 +119,12 @@ func (s *Server) setupRouter() *chi.Mux {
 
 			// Produtos
 			r.Get("/produtos/abc", s.handleProdutosABC)
+			r.Get("/produtos/kpis", s.handleProdutosKPIs)
+			r.Get("/produtos/matriz", s.handleProdutosMatriz)
+			r.Get("/produtos/ranking", s.handleProdutosRanking)
+			r.Get("/produtos/elasticidade", s.handleProdutosElasticidade)
+			r.Get("/produtos/basket", s.handleProdutosBasket)
+			r.Get("/produtos/dead-stock", s.handleProdutosDeadStock)
 
 			// Clientes
 			r.Get("/clientes/rfm", s.handleClientesRFM)
