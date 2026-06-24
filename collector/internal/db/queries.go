@@ -1057,9 +1057,12 @@ func GetCatalogKPIs(db *sql.DB, clientKey string) (*CatalogKPIs, error) {
 	_ = db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s.produtos", schema)).Scan(&kpis.TotalSKUs)
 
 	_ = db.QueryRow(fmt.Sprintf(`
-		SELECT COUNT(*), COALESCE(SUM(faturamento), 0) 
-		FROM %s.abc_xyz_cache WHERE classe = 'A'
-	`, schema)).Scan(&kpis.QtdClasseA, &kpis.PctFaturamentoA)
+			SELECT 
+				COUNT(*), 
+				COALESCE((SUM(faturamento) / NULLIF((SELECT SUM(faturamento) FROM %s.abc_xyz_cache), 0)) * 100, 0)
+			FROM %s.abc_xyz_cache 
+			WHERE classe = 'A'
+		`, schema, schema)).Scan(&kpis.QtdClasseA, &kpis.PctFaturamentoA)
 
 	// Alterado para ler da nova tabela margem_cache
 	_ = db.QueryRow(fmt.Sprintf("SELECT COALESCE(AVG(pct_margem), 0) FROM %s.margem_cache", schema)).Scan(&kpis.MargemMedia)
