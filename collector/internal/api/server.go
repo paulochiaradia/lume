@@ -105,17 +105,13 @@ func (s *Server) setupRouter() *chi.Mux {
 			r.Get("/vendas/resumo", s.handleVendasResumo)
 			r.Get("/vendas/por-dia", s.handleVendasPorDia)             // ← A Home usa esse
 			r.Get("/vendas/tendencia-diaria", s.handleTendenciaDiaria) // ← A página de Vendas usa esse!
-			r.Get("/vendas/top-dias", s.handleTopDias)                 // ← Agora ele existe e não vai dar erro
+			r.Get("/vendas/top-dias", s.handleTopDias)
 			r.Get("/vendas/por-hora", s.handleVendasPorHora)
 			r.Get("/vendas/mix", s.handleMixVendas)
 			r.Get("/vendas/kpis", s.handleVendasKPIs)
 			r.Get("/vendas/ranking-vendedores", s.handleRankingVendedores)
 			r.Get("/vendas/heatmap", s.handleVendasHeatmap)
-			r.Get("/vendas/insights", s.handleVendasInsights) // ← Nova rota isolada!
-
-			// Estoque
-			r.Get("/estoque/alertas", s.handleEstoqueAlertas)
-			r.Get("/estoque/completo", s.handleEstoqueCompleto)
+			r.Get("/vendas/insights", s.handleVendasInsights)
 
 			// Produtos
 			r.Get("/produtos/abc", s.handleProdutosABC)
@@ -132,6 +128,12 @@ func (s *Server) setupRouter() *chi.Mux {
 
 			// Insights
 			r.Get("/insights", s.handleInsights)
+
+			// Estoque
+			r.Get("/estoque/alertas", s.handleEstoqueAlertas)
+			r.Get("/estoque/completo", s.handleEstoqueCompleto)
+			r.Get("/estoque/reposicao", s.handleEstoqueReposicao)
+			r.Get("/estoque/kpis", s.handleEstoqueKPIs)
 
 		})
 	})

@@ -90,24 +90,6 @@ func (s *Server) handleVendasResumo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resumo)
 }
 
-// ── Estoque ──────────────────────────────────────────────────
-
-func (s *Server) handleEstoqueAlertas(w http.ResponseWriter, r *http.Request) {
-	claims := getClaims(r)
-	if claims == nil {
-		writeError(w, http.StatusUnauthorized, "não autorizado")
-		return
-	}
-
-	alertas, err := db.GetEstoqueAlertas(s.db, claims.ClientKey)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "erro ao buscar alertas de estoque")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, alertas)
-}
-
 // ── Produtos ─────────────────────────────────────────────────
 
 func (s *Server) handleProdutosABC(w http.ResponseWriter, r *http.Request) {
@@ -157,22 +139,6 @@ func (s *Server) handleResumoSegmentos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, segmentos)
-}
-
-func (s *Server) handleEstoqueCompleto(w http.ResponseWriter, r *http.Request) {
-	claims := getClaims(r)
-	if claims == nil {
-		writeError(w, http.StatusUnauthorized, "não autorizado")
-		return
-	}
-
-	estoque, err := db.GetEstoqueCompleto(s.db, claims.ClientKey)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "erro ao buscar estoque")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, estoque)
 }
 
 func (s *Server) handleInsights(w http.ResponseWriter, r *http.Request) {
@@ -520,7 +486,6 @@ func (s *Server) handleProdutosMatriz(w http.ResponseWriter, r *http.Request) {
 }
 
 // 3. RANKING DE PRODUTOS COM TENDÊNCIA
-// 3. RANKING DE PRODUTOS COM TENDÊNCIA
 func (s *Server) handleProdutosRanking(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	if claims == nil {
@@ -585,4 +550,69 @@ func (s *Server) handleProdutosDeadStock(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, http.StatusOK, deadStock)
+}
+
+// ESTOQUE REPOSIÇÃO / FILA DE COMPRAS PREDITIVA
+func (s *Server) handleEstoqueReposicao(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	fila, err := db.GetEstoqueReposicao(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar fila de reposição de estoque")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, fila)
+}
+
+// ESTOQUE: ALERTAS E RUPTURAS
+func (s *Server) handleEstoqueAlertas(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	alertas, err := db.GetEstoqueAlertas(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar alertas de estoque")
+		return
+	}
+	writeJSON(w, http.StatusOK, alertas)
+}
+
+// ESTOQUE: TABELA COMPLETA
+func (s *Server) handleEstoqueCompleto(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	completo, err := db.GetEstoqueCompleto(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar estoque completo")
+		return
+	}
+	writeJSON(w, http.StatusOK, completo)
+}
+
+// ESTOQUE: KPIs
+func (s *Server) handleEstoqueKPIs(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
+
+	kpis, err := db.GetEstoqueKPIs(s.db, claims.ClientKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao carregar kpis de estoque")
+		return
+	}
+	writeJSON(w, http.StatusOK, kpis)
 }

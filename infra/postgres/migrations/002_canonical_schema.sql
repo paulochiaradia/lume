@@ -122,7 +122,20 @@ BEGIN
             created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
             UNIQUE(fornecedor_key)
         )', v_schema);
-
+        -- ── Tabela de cache de reposição preditiva ────────────
+    EXECUTE format('
+        CREATE TABLE IF NOT EXISTS %I.estoque_reposicao_cache (
+            id VARCHAR(50) PRIMARY KEY,
+            nome VARCHAR(255) NOT NULL,
+            categoria VARCHAR(100) NOT NULL,
+            classe_abc CHAR(1) NOT NULL,
+            estoque_atual DOUBLE PRECISION NOT NULL,
+            demanda_prevista DOUBLE PRECISION NOT NULL,
+            dias_ate_ruptura INT NOT NULL,
+            quantidade_sugerida DOUBLE PRECISION NOT NULL,
+            urgencia INT NOT NULL,
+            atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )', v_schema);
     RAISE NOTICE 'schema % criado com sucesso', v_schema;
 END;
 $$ LANGUAGE plpgsql;

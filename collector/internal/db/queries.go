@@ -1047,6 +1047,18 @@ type DeadStockProduto struct {
 	CapitalParado float64 `json:"capital_parado"`
 }
 
+type EstoqueReposicao struct {
+	ID                 string  `json:"id"`
+	Nome               string  `json:"nome"`
+	Categoria          string  `json:"categoria"`
+	ClasseABC          string  `json:"classe_abc"`
+	EstoqueAtual       float64 `json:"estoque_atual"`
+	DemandaPrevista    float64 `json:"demanda_prevista"`
+	DiasAteRuptura     int     `json:"dias_ate_ruptura"`
+	QuantidadeSugerida float64 `json:"quantidade_sugerida"`
+	Urgencia           int     `json:"urgencia"`
+}
+
 // ── FUNÇÕES DE BUSCA ─────────────────────────────────────────
 
 // 1. KPIs DO CATÁLOGO
@@ -1247,4 +1259,81 @@ func GetDeadStock(db *sql.DB, clientKey string) ([]DeadStockProduto, error) {
 		lista = append(lista, ds)
 	}
 	return lista, nil
+}
+
+// GetEstoqueReposicao busca a fila de compras priorizada no cache do Postgres
+func GetEstoqueReposicao(db *sql.DB, clientKey string) ([]EstoqueReposicao, error) {
+	schema := "client_" + clientKey
+
+	rows, err := db.Query(fmt.Sprintf(`
+		SELECT id, nome, categoria, classe_abc, estoque_atual, demanda_prevista, 
+		       dias_ate_ruptura, quantidade_sugerida, urgencia
+		FROM %s.estoque_reposicao_cache
+		ORDER BY urgencia ASC, dias_ate_ruptura ASC
+	`, schema))
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var fila []EstoqueReposicao
+	for rows.Next() {
+		var item EstoqueReposicao
+		if err := rows.Scan(
+			&item.ID, &item.Nome, &item.Categoria, &item.ClasseABC,
+			&item.EstoqueAtual, &item.DemandaPrevista,
+			&item.DiasAteRuptura, &item.QuantidadeSugerida, &item.Urgencia,
+		); err != nil {
+			continue // Seguindo exatamente o seu padrão de ignorar a linha com erro e seguir
+		}
+		fila = append(fila, item)
+	}
+
+	// Garante que retorne um array vazio [] ao invés de null para o JSON do frontend
+	if fila == nil {
+		fila = []EstoqueReposicao{}
+	}
+
+	return fila, nil
+}
+
+// ── MODELO DE DADOS: KPIS DE ESTOQUE ────────────────────────────────
+type EstoqueKPIs struct {
+	TotalSKUs         int     `json:"total_skus"`
+	ValorTotalEstoque float64 `json:"valor_total_estoque"`
+	ItensEmAlerta     int     `json:"itens_em_alerta"`
+	TaxaRuptura       float64 `json:"taxa_ruptura"`
+}
+
+// GetEstoqueKPIs busca os indicadores principais do topo da tela
+func GetEstoqueKPIs(db *sql.DB, clientKey string) (EstoqueKPIs, error) {
+	schema := "client_" + clientKey
+	var kpis EstoqueKPIs
+
+	// Agregação rápida para os blocos do topo
+	query := fmt.Sprintf(`
+		SELECT 
+			COUNT(e.produto_key) AS total_skus,
+			COALESCE(SUM(CASE WHEN e.quantidade > 0 THEN e.quantidade * p.preco_custo ELSE 0 END), 0) AS valor_total_estoque,
+			COUNT(CASE WHEN e.quantidade <= e.quantidade_min THEN 1 END) AS itens_em_alerta,
+			COALESCE(ROUND(
+				(COUNT(CASE WHEN e.quantidade <= 0 THEN 1 END)::numeric / NULLIF(COUNT(e.produto_key), 0)) * 100
+			, 2), 0) AS taxa_ruptura
+		FROM %s.estoque e
+		LEFT JOIN %s.produtos p ON p.produto_key = e.produto_key
+	`, schema, schema)
+
+	err := db.QueryRow(query).Scan(
+		&kpis.TotalSKUs,
+		&kpis.ValorTotalEstoque,
+		&kpis.ItensEmAlerta,
+		&kpis.TaxaRuptura,
+	)
+
+	if err != nil {
+		return kpis, fmt.Errorf("erro ao calcular kpis de estoque: %w", err)
+	}
+
+	return kpis, nil
 }
