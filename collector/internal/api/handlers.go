@@ -616,3 +616,23 @@ func (s *Server) handleEstoqueKPIs(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, kpis)
 }
+
+// CORE: RETORNA O PERFIL DO USUÁRIO LOGADO E VALIDA SESSÃO
+func (s *Server) handleAuthMe(w http.ResponseWriter, r *http.Request) {
+	// 1. Extrai a identidade do JWT (já validado pelo middleware)
+	claims := getClaims(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, "token inválido ou ausente")
+		return
+	}
+
+	// 2. Busca no banco para garantir que o usuário não foi deletado/desativado hoje
+	profile, err := db.GetUserProfile(s.db, claims.UserID)
+	if err != nil {
+		writeError(w, http.StatusForbidden, "usuário inativo ou não encontrado")
+		return
+	}
+
+	// 3. Retorna os dados fresquinhos
+	writeJSON(w, http.StatusOK, profile)
+}

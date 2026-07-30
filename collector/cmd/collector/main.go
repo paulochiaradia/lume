@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/paulochiaradia/lume/collector/internal/api"
 	"github.com/paulochiaradia/lume/collector/internal/db"
 	"github.com/paulochiaradia/lume/collector/internal/scheduler"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -22,7 +24,7 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	fmt.Println("╔══════════════════════════════════════╗")
-	fmt.Println("║     Lume — Collector Service         ║")
+	fmt.Println("║      Lume — Collector Service        ║")
 	fmt.Println("╚══════════════════════════════════════╝")
 
 	log.Printf("ambiente: %s", env)
@@ -31,12 +33,32 @@ func main() {
 		godotenv.Load("../../.env")
 	}
 
-	// Conecta no banco
+	// ── Conecta no PostgreSQL ─────────────────────────────────
 	conn, err := db.Connect()
 	if err != nil {
-		log.Fatalf("erro ao conectar no banco: %v", err)
+		log.Fatalf("erro ao conectar no banco PostgreSQL: %v", err)
 	}
 	defer conn.Close()
+
+	// ── Conecta no Redis ──────────────────────────────────────
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379" // Padrão seguro para rodar fora do Docker
+	}
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       0, // Usa o banco padrão do Redis
+	})
+
+	// Testa se o Redis está vivo antes de subir a aplicação
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		log.Fatalf("erro ao conectar no banco Redis: %v", err)
+	}
+	defer rdb.Close()
+
+	log.Println("redis: conexão estabelecida com sucesso")
 
 	// Em desenvolvimento roda o teste do pipeline
 	if env == "development" {
@@ -50,8 +72,8 @@ func main() {
 	}
 	defer s.Stop()
 
-	// Inicia o servidor HTTP em background
-	server := api.New(conn)
+	// Inicia o servidor HTTP em background (agora com PostgreSQL e Redis)
+	server := api.New(conn, rdb)
 	go func() {
 		if err := server.Start(); err != nil {
 			log.Fatalf("erro no servidor HTTP: %v", err)

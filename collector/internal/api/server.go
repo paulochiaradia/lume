@@ -11,18 +11,23 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/redis/go-redis/v9"
 )
 
 // Server é o servidor HTTP da API
 type Server struct {
 	db     *sql.DB
+	rdb    *redis.Client // Nova dependência do Redis
 	router *chi.Mux
 	http   *http.Server
 }
 
-// New cria uma nova instância do servidor
-func New(db *sql.DB) *Server {
-	s := &Server{db: db}
+// New cria uma nova instância do servidor injetando Postgres e Redis
+func New(db *sql.DB, rdb *redis.Client) *Server {
+	s := &Server{
+		db:  db,
+		rdb: rdb,
+	}
 	s.router = s.setupRouter()
 	s.http = &http.Server{
 		Addr:         ":8080",
@@ -57,6 +62,9 @@ func (s *Server) Stop() {
 func (s *Server) setupRouter() *chi.Mux {
 	r := chi.NewRouter()
 
+	// Inicializa os limitadores de taxa com a conexão do Redis
+	limiter := NewRateLimiter(s.rdb)
+
 	// ── Middlewares globais ──────────────────────────────────
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
@@ -77,11 +85,11 @@ func (s *Server) setupRouter() *chi.Mux {
 		MaxAge:           300,
 	}))
 
-	// ── Headers de segurança ─────────────────────────────────
-	r.Use(securityHeaders)
+	// ── Headers de segurança (Atualizado) ────────────────────
+	r.Use(SecurityHeaders)
 
-	// ── Rate limiting global ─────────────────────────────────
-	r.Use(globalRateLimiter)
+	// ── Rate limiting global (100 req/min por IP) ────────────
+	r.Use(limiter.Global)
 
 	// ── Rotas públicas ───────────────────────────────────────
 	r.Get("/health", s.handleHealth)
@@ -90,21 +98,30 @@ func (s *Server) setupRouter() *chi.Mux {
 		// Health — público, sem auth
 		r.Get("/health", s.handleHealth)
 
-		// Auth — sem JWT
-		r.Post("/auth/login", s.handleLogin)
+		// Auth — sem JWT, mas com proteção rígida contra Força Bruta (10 req/min)
+		r.With(limiter.Strict).Post("/auth/login", s.handleLogin)
+		r.With(limiter.Strict).Post("/auth/refresh", s.handleRefresh)
 
 		// Rotas protegidas — exigem JWT válido
 		r.Group(func(r chi.Router) {
 			r.Use(s.jwtMiddleware)
-			r.Use(strictRateLimiter)
+
+			// Core
+			r.Get("/auth/me", s.handleAuthMe)
+			r.Post("/auth/logout", s.handleLogout)
+			r.Get("/auth/sessions", s.handleGetSessions)
+			r.Post("/auth/sessions/revoke", s.handleRevokeSession)
+			r.Post("/auth/sessions/global-logout", s.handleGlobalLogout)
+			r.Post("/auth/sessions/logout-others", s.handleLogoutOthers)
+			r.Post("/auth/password/change", s.handleChangePassword)
 
 			// Home
 			r.Get("/home/kpis", s.handleHomeKPIs)
 
 			// Vendas
 			r.Get("/vendas/resumo", s.handleVendasResumo)
-			r.Get("/vendas/por-dia", s.handleVendasPorDia)             // ← A Home usa esse
-			r.Get("/vendas/tendencia-diaria", s.handleTendenciaDiaria) // ← A página de Vendas usa esse!
+			r.Get("/vendas/por-dia", s.handleVendasPorDia)
+			r.Get("/vendas/tendencia-diaria", s.handleTendenciaDiaria)
 			r.Get("/vendas/top-dias", s.handleTopDias)
 			r.Get("/vendas/por-hora", s.handleVendasPorHora)
 			r.Get("/vendas/mix", s.handleMixVendas)
@@ -134,7 +151,6 @@ func (s *Server) setupRouter() *chi.Mux {
 			r.Get("/estoque/completo", s.handleEstoqueCompleto)
 			r.Get("/estoque/reposicao", s.handleEstoqueReposicao)
 			r.Get("/estoque/kpis", s.handleEstoqueKPIs)
-
 		})
 	})
 
