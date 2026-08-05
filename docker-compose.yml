@@ -45,6 +45,8 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       ENV: ${ENV}
       JWT_SECRET: ${JWT_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL}
 
     volumes:
       - ./clients:/app/clients

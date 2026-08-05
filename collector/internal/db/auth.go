@@ -281,3 +281,32 @@ func UpdatePassword(db *sql.DB, userID string, newHash string) error {
 	_, err := db.Exec(query, newHash, userID)
 	return err
 }
+
+// CreatePasswordResetToken salva o token gerado associado ao usuário com validade de 1 hora
+func CreatePasswordResetToken(db *sql.DB, userID string, token string) error {
+	query := `
+		INSERT INTO lume_system.password_resets (user_id, token, expires_at)
+		VALUES ($1, $2, NOW() + INTERVAL '1 hour')
+	`
+	_, err := db.Exec(query, userID, token)
+	return err
+}
+
+// GetValidPasswordResetToken busca o token. Só retorna o userID se o token existir, não tiver expirado e não tiver sido usado.
+func GetValidPasswordResetToken(db *sql.DB, token string) (string, error) {
+	var userID string
+	query := `
+		SELECT user_id 
+		FROM lume_system.password_resets 
+		WHERE token = $1 AND used = FALSE AND expires_at > NOW()
+	`
+	err := db.QueryRow(query, token).Scan(&userID)
+	return userID, err
+}
+
+// MarkTokenAsUsed "queima" o token para que ele não possa ser reutilizado pelo mesmo link
+func MarkTokenAsUsed(db *sql.DB, token string) error {
+	query := `UPDATE lume_system.password_resets SET used = TRUE WHERE token = $1`
+	_, err := db.Exec(query, token)
+	return err
+}

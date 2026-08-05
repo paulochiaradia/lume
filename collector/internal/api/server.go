@@ -11,22 +11,25 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/paulochiaradia/lume/collector/internal/mailer"
 	"github.com/redis/go-redis/v9"
 )
 
 // Server é o servidor HTTP da API
 type Server struct {
 	db     *sql.DB
-	rdb    *redis.Client // Nova dependência do Redis
+	rdb    *redis.Client
 	router *chi.Mux
 	http   *http.Server
+	mailer *mailer.Service
 }
 
 // New cria uma nova instância do servidor injetando Postgres e Redis
-func New(db *sql.DB, rdb *redis.Client) *Server {
+func New(db *sql.DB, rdb *redis.Client, mailer *mailer.Service) *Server {
 	s := &Server{
-		db:  db,
-		rdb: rdb,
+		db:     db,
+		rdb:    rdb,
+		mailer: mailer,
 	}
 	s.router = s.setupRouter()
 	s.http = &http.Server{
@@ -101,6 +104,8 @@ func (s *Server) setupRouter() *chi.Mux {
 		// Auth — sem JWT, mas com proteção rígida contra Força Bruta (10 req/min)
 		r.With(limiter.Strict).Post("/auth/login", s.handleLogin)
 		r.With(limiter.Strict).Post("/auth/refresh", s.handleRefresh)
+		r.With(limiter.Strict).Post("/auth/password/forgot", s.handleForgotPassword)
+		r.With(limiter.Strict).Post("/auth/password/reset", s.handleResetPassword)
 
 		// Rotas protegidas — exigem JWT válido
 		r.Group(func(r chi.Router) {

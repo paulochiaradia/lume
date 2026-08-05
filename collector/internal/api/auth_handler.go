@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -458,4 +459,124 @@ func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{
 		"message": "senha alterada com sucesso! todos os outros dispositivos foram desconectados por segurança.",
 	})
+}
+
+// ForgotPasswordRequest payload para solicitar o link
+type ForgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+// handleForgotPassword processa o pedido de recuperação (Rota Pública)
+func (s *Server) handleForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req ForgotPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "body inválido")
+		return
+	}
+
+	if req.Email == "" {
+		writeError(w, http.StatusBadRequest, "email é obrigatório")
+		return
+	}
+
+	log.Printf("🔍 DEBUG: Recebi pedido de recuperação para o e-mail: '%s'", req.Email)
+
+	// Tenta buscar o usuário
+	user, err := db.GetUserByEmail(s.db, req.Email)
+	if err != nil {
+		log.Printf("⚠️ DEBUG: Falha ao buscar usuário no banco. Erro: %v", err)
+		writeJSON(w, http.StatusOK, map[string]string{"message": "se o e-mail existir, um link de recuperação foi enviado."})
+		return
+	}
+
+	log.Printf("👤 DEBUG: Usuário encontrado! ID: %s. Gerando token...", user.ID)
+
+	// Gera o token de 32 bytes
+	token, err := auth.GenerateSecureToken(32)
+	if err != nil {
+		log.Printf("🚨 DEBUG: Erro ao gerar token: %v", err)
+		writeError(w, http.StatusInternalServerError, "erro interno do servidor")
+		return
+	}
+
+	// Salva no banco com validade de 1 hora
+	if err := db.CreatePasswordResetToken(s.db, user.ID, token); err != nil {
+		log.Printf("🚨 DEBUG: Erro ao salvar token no banco: %v", err)
+		writeError(w, http.StatusInternalServerError, "erro interno do servidor")
+		return
+	}
+
+	log.Printf("🔑 DEBUG: Token salvo com sucesso. Disparando e-mail via Resend...")
+
+	resetLink := fmt.Sprintf("http://localhost:3000/reset-password?token=%s", token)
+	html := fmt.Sprintf(`
+		<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+			<h2 style="color: #2563eb;">Recuperação de Senha - Lume</h2>
+			<p>Olá %s,</p>
+			<p>Recebemos uma solicitação para redefinir a senha da sua conta.</p>
+			<p><a href="%s" style="background-color: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Redefinir Minha Senha</a></p>
+			<p style="font-size: 12px; color: #666;">Se você não solicitou isso, pode ignorar este e-mail. O link expira em 1 hora.</p>
+		</div>
+	`, user.Name, resetLink)
+
+	// Dispara o e-mail em background
+	go func() {
+		err := s.mailer.Send(user.Email, "Lume - Recuperação de Senha", html)
+		if err != nil {
+			log.Printf("🚨 ERRO GRAVE NO RESEND: Falha ao enviar para %s: %v", user.Email, err)
+		} else {
+			log.Printf("✅ SUCESSO: E-mail de recuperação enviado para %s", user.Email)
+		}
+	}()
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "se o e-mail existir, um link de recuperação foi enviado."})
+}
+
+// ResetPasswordRequest payload para salvar a nova senha
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+// handleResetPassword processa a nova senha (Rota Pública)
+func (s *Server) handleResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "body inválido")
+		return
+	}
+
+	if req.Token == "" || len(req.NewPassword) < 8 {
+		writeError(w, http.StatusBadRequest, "token inválido ou senha muito curta (mínimo 8 caracteres)")
+		return
+	}
+
+	// 1. Valida se o token existe e não expirou
+	userID, err := db.GetValidPasswordResetToken(s.db, req.Token)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "token inválido ou expirado")
+		return
+	}
+
+	// 2. Criptografa a nova senha
+	newHash, err := auth.HashPassword(req.NewPassword)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao processar senha")
+		return
+	}
+
+	// 3. Atualiza no banco
+	if err := db.UpdatePassword(s.db, userID, newHash); err != nil {
+		writeError(w, http.StatusInternalServerError, "erro ao atualizar senha")
+		return
+	}
+
+	// 4. Queima o token
+	_ = db.MarkTokenAsUsed(s.db, req.Token)
+
+	// 5. SEGURANÇA MÁXIMA: Derruba todas as sessões ativas deste usuário (Botão de pânico)
+	// Isso garante que se o hacker estava logado, ele perde o acesso na hora.
+	_ = db.DeleteAllSessions(s.db, userID)
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "senha redefinida com sucesso. você já pode fazer login."})
 }

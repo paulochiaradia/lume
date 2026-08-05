@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -74,4 +75,13 @@ func ValidateToken(tokenString, secret string) (*Claims, error) {
 	}
 
 	return nil, fmt.Errorf("token inválido ou expirado")
+}
+
+// GenerateSecureToken cria um token criptograficamente seguro para recuperação de senha
+func GenerateSecureToken(length int) (string, error) {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }

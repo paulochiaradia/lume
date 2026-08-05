@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/paulochiaradia/lume/collector/internal/api"
 	"github.com/paulochiaradia/lume/collector/internal/db"
+	"github.com/paulochiaradia/lume/collector/internal/mailer"
 	"github.com/paulochiaradia/lume/collector/internal/scheduler"
 	"github.com/redis/go-redis/v9"
 )
@@ -72,8 +73,14 @@ func main() {
 	}
 	defer s.Stop()
 
-	// Inicia o servidor HTTP em background (agora com PostgreSQL e Redis)
-	server := api.New(conn, rdb)
+	//Inicia o serviço de envio de e-mails
+	mailService, err := mailer.New(os.Getenv("RESEND_API_KEY"))
+	if err != nil {
+		log.Fatalf("erro ao iniciar serviço de e-mail: %v", err)
+	}
+
+	// Inicia o servidor HTTP em background (agora com PostgreSQL, Redis e mailer)
+	server := api.New(conn, rdb, mailService)
 	go func() {
 		if err := server.Start(); err != nil {
 			log.Fatalf("erro no servidor HTTP: %v", err)
