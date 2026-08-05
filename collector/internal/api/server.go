@@ -106,6 +106,7 @@ func (s *Server) setupRouter() *chi.Mux {
 		r.With(limiter.Strict).Post("/auth/refresh", s.handleRefresh)
 		r.With(limiter.Strict).Post("/auth/password/forgot", s.handleForgotPassword)
 		r.With(limiter.Strict).Post("/auth/password/reset", s.handleResetPassword)
+		r.With(limiter.Strict).Post("/auth/invites/accept", s.handleAcceptInvite)
 
 		// Rotas protegidas — exigem JWT válido
 		r.Group(func(r chi.Router) {
@@ -119,6 +120,11 @@ func (s *Server) setupRouter() *chi.Mux {
 			r.Post("/auth/sessions/global-logout", s.handleGlobalLogout)
 			r.Post("/auth/sessions/logout-others", s.handleLogoutOthers)
 			r.Post("/auth/password/change", s.handleChangePassword)
+
+			// Admin — apenas para usuários com role "admin" ou "gerente"
+			r.Post("/admin/invites", s.handleCreateInvite)
+			r.Get("/admin/invites", s.handleListInvites)
+			r.Delete("/admin/invites/{id}", s.handleRevokeInvite)
 
 			// Home
 			r.Get("/home/kpis", s.handleHomeKPIs)

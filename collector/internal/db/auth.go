@@ -18,6 +18,23 @@ type User struct {
 	LockedUntil         *time.Time
 }
 
+// GetUserByEmailAndClient busca um usuário ativo pelo e-mail dentro de um cliente específico.
+func GetUserByEmailAndClient(db *sql.DB, email, clientID string) (*User, error) {
+	var u User
+	err := db.QueryRow(`
+		SELECT id, client_id, email, password_hash, role, name, active, failed_login_attempts, locked_until
+		FROM lume_system.users
+		WHERE email = $1 AND client_id = $2 AND active = true
+	`, email, clientID).Scan(&u.ID, &u.ClientID, &u.Email, &u.PasswordHash, &u.Role, &u.Name, &u.Active, &u.FailedLoginAttempts, &u.LockedUntil)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("usuário não encontrado")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar usuário: %w", err)
+	}
+	return &u, nil
+}
+
 type Session struct {
 	UserID       string
 	RefreshToken string
@@ -55,6 +72,16 @@ func GetUserByEmail(db *sql.DB, email string) (*User, error) {
 		return nil, fmt.Errorf("erro ao buscar usuário: %w", err)
 	}
 	return &u, nil
+}
+
+// CreateUser insere um novo usuário ativo no tenant informado.
+func CreateUser(db *sql.DB, clientID, email, passwordHash, role, name string) error {
+	query := `
+		INSERT INTO lume_system.users (client_id, email, password_hash, role, name, active)
+		VALUES ($1, $2, $3, $4, $5, true)
+	`
+	_, err := db.Exec(query, clientID, email, passwordHash, role, name)
+	return err
 }
 
 // GetUserByID busca os dados do usuário usando o ID (necessário para o Refresh)

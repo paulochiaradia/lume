@@ -479,34 +479,32 @@ func (s *Server) handleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("🔍 DEBUG: Recebi pedido de recuperação para o e-mail: '%s'", req.Email)
+	log.Printf("auth: pedido de recuperação para %s", req.Email)
 
 	// Tenta buscar o usuário
 	user, err := db.GetUserByEmail(s.db, req.Email)
 	if err != nil {
-		log.Printf("⚠️ DEBUG: Falha ao buscar usuário no banco. Erro: %v", err)
+		log.Printf("auth: e-mail não encontrado para recuperação")
 		writeJSON(w, http.StatusOK, map[string]string{"message": "se o e-mail existir, um link de recuperação foi enviado."})
 		return
 	}
 
-	log.Printf("👤 DEBUG: Usuário encontrado! ID: %s. Gerando token...", user.ID)
-
 	// Gera o token de 32 bytes
 	token, err := auth.GenerateSecureToken(32)
 	if err != nil {
-		log.Printf("🚨 DEBUG: Erro ao gerar token: %v", err)
+		log.Printf("auth: erro ao gerar token de recuperação: %v", err)
 		writeError(w, http.StatusInternalServerError, "erro interno do servidor")
 		return
 	}
 
 	// Salva no banco com validade de 1 hora
 	if err := db.CreatePasswordResetToken(s.db, user.ID, token); err != nil {
-		log.Printf("🚨 DEBUG: Erro ao salvar token no banco: %v", err)
+		log.Printf("auth: erro ao salvar token de recuperação: %v", err)
 		writeError(w, http.StatusInternalServerError, "erro interno do servidor")
 		return
 	}
 
-	log.Printf("🔑 DEBUG: Token salvo com sucesso. Disparando e-mail via Resend...")
+	log.Printf("auth: token de recuperação gerado para %s", user.Email)
 
 	resetLink := fmt.Sprintf("http://localhost:3000/reset-password?token=%s", token)
 	html := fmt.Sprintf(`
@@ -523,9 +521,7 @@ func (s *Server) handleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		err := s.mailer.Send(user.Email, "Lume - Recuperação de Senha", html)
 		if err != nil {
-			log.Printf("🚨 ERRO GRAVE NO RESEND: Falha ao enviar para %s: %v", user.Email, err)
-		} else {
-			log.Printf("✅ SUCESSO: E-mail de recuperação enviado para %s", user.Email)
+			log.Printf("auth: falha ao enviar e-mail de recuperação para %s: %v", user.Email, err)
 		}
 	}()
 

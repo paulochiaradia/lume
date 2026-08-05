@@ -45,17 +45,17 @@ func (s *Scheduler) Start() error {
 	for _, client := range clients {
 		c := client // captura para a goroutine
 
-		cfg := connector.Config{
-			ClientKey: c.ClientKey,
-			ERPType:   c.ERPType,
-			Schedule:  connector.DefaultSchedule,
+		cfg, err := buildConnectorConfig(c)
+		if err != nil {
+			log.Printf("scheduler: cliente %s ignorado por erro de configuração: %v", c.ClientKey, err)
+			continue
 		}
 
 		schedule := cfg.Schedule
 		log.Printf("scheduler: registrando job para cliente %s (schedule: %s)", c.ClientKey, schedule)
 
 		s.cron.AddFunc(schedule, func() {
-			s.runSync(c.ClientKey, c.ID, cfg)
+			s.runSync(c.ClientKey, c.ID)
 		})
 	}
 
@@ -76,11 +76,23 @@ func (s *Scheduler) Stop() {
 }
 
 // runSync executa a sincronização de um cliente
-func (s *Scheduler) runSync(clientKey, clientID string, cfg connector.Config) {
+func (s *Scheduler) runSync(clientKey, clientID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	log.Printf("scheduler: iniciando sync para cliente %s", clientKey)
+
+	client, err := db.GetClientByID(s.db, clientID)
+	if err != nil {
+		log.Printf("scheduler: erro ao recarregar configuração de %s: %v", clientKey, err)
+		return
+	}
+
+	cfg, err := buildConnectorConfig(*client)
+	if err != nil {
+		log.Printf("scheduler: erro ao montar configuração de %s: %v", clientKey, err)
+		return
+	}
 
 	// Registra início no etl_log
 	logID, err := db.InsertETLLog(s.db, clientID, cfg.ERPType)
