@@ -125,6 +125,8 @@ func (s *Server) setupRouter() *chi.Mux {
 			r.Post("/admin/invites", s.handleCreateInvite)
 			r.Get("/admin/invites", s.handleListInvites)
 			r.Delete("/admin/invites/{id}", s.handleRevokeInvite)
+			r.Get("/admin/users", s.handleListTeam)
+			r.Patch("/admin/users/{id}/deactivate", s.handleDeactivateUser)
 
 			// Home
 			r.Get("/home/kpis", s.handleHomeKPIs)
