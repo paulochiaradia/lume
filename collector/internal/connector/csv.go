@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,8 +46,22 @@ func (c *CSVConnector) Validate() error {
 
 // Extract lê o CSV e retorna os registros brutos
 func (c *CSVConnector) Extract() ([]RawRecord, error) {
+	// [SLOG] Marca o início do processo de ingestão
+	slog.Info("iniciando extracao de csv",
+		slog.String("event", "etl_csv_extract_started"),
+		slog.String("tenant_id", c.cfg.ClientKey),
+		slog.String("file", c.cfg.FilePath),
+		slog.String("separator", string(c.separator)),
+	)
+
 	file, err := os.Open(c.cfg.FilePath)
 	if err != nil {
+		slog.Error("erro fatal ao abrir arquivo csv",
+			slog.String("event", "etl_csv_open_error"),
+			slog.String("tenant_id", c.cfg.ClientKey),
+			slog.String("file", c.cfg.FilePath),
+			slog.String("error", err.Error()),
+		)
 		return nil, fmt.Errorf("erro ao abrir arquivo %s: %w", c.cfg.FilePath, err)
 	}
 	defer file.Close()
@@ -59,6 +74,11 @@ func (c *CSVConnector) Extract() ([]RawRecord, error) {
 	// Lê o cabeçalho
 	headers, err := reader.Read()
 	if err != nil {
+		slog.Error("erro ao ler cabecalho do csv",
+			slog.String("event", "etl_csv_header_error"),
+			slog.String("tenant_id", c.cfg.ClientKey),
+			slog.String("error", err.Error()),
+		)
 		return nil, fmt.Errorf("erro ao ler cabeçalho do CSV: %w", err)
 	}
 
@@ -69,7 +89,7 @@ func (c *CSVConnector) Extract() ([]RawRecord, error) {
 
 	// Lê os registros
 	var records []RawRecord
-	lineNum := 1
+	lineNum := 1 // Começa em 1 (ou 2, se considerar o cabeçalho como linha 1, mas mantive sua lógica)
 
 	for {
 		row, err := reader.Read()
@@ -77,8 +97,15 @@ func (c *CSVConnector) Extract() ([]RawRecord, error) {
 			break
 		}
 		if err != nil {
-			// Loga o erro mas continua processando as demais linhas
-			fmt.Printf("aviso: erro na linha %d do CSV: %v\n", lineNum, err)
+			// [SLOG] Substitui o fmt.Printf. O WARN é perfeito aqui pois o pipeline não morre,
+			// ele apenas pula a linha defeituosa, mas deixa o rastro no Grafana.
+			slog.Warn("erro ao processar linha do csv (linha ignorada)",
+				slog.String("event", "etl_csv_row_parse_error"),
+				slog.String("tenant_id", c.cfg.ClientKey),
+				slog.String("file", c.cfg.FilePath),
+				slog.Int("line", lineNum),
+				slog.String("error", err.Error()),
+			)
 			lineNum++
 			continue
 		}
@@ -95,6 +122,14 @@ func (c *CSVConnector) Extract() ([]RawRecord, error) {
 		records = append(records, record)
 		lineNum++
 	}
+
+	// [SLOG] Telemetria de sucesso. Útil para medir volumetria diária por cliente.
+	slog.Info("extracao de csv concluida com sucesso",
+		slog.String("event", "etl_csv_extract_success"),
+		slog.String("tenant_id", c.cfg.ClientKey),
+		slog.Int("records_extracted", len(records)),
+		slog.Int("total_lines_processed", lineNum),
+	)
 
 	return records, nil
 }

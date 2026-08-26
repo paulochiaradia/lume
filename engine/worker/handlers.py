@@ -120,3 +120,40 @@ def handle_insights_vendas(client_key: str):
     salvar_insights_vendas(client_key, insights, top3)
     salvar_insights_vendas_postgres(client_key, top3)
     log.info(f"Insights de Vendas concluidos para {client_key}: {len(insights)} gerados, {len(top3)} no top3")
+
+@register("estoque_reposicao")
+def handle_estoque_reposicao(client_key: str):
+    """Executa o cruzamento de estoque com o forecast do Prophet"""
+    from core.algorithms.estoque_reposicao import calcular_reposicao, salvar_reposicao_postgres
+    from core.db.postgres import read_table
+    from segments import get_engine
+    
+    engine = get_engine(client_key)
+    
+    try:
+        df_produtos = engine.get_produtos()
+        df_estoque = read_table(client_key, "estoque")
+        
+        try:
+            df_forecast = read_table(client_key, "prophet_forecast_resultado")
+        except Exception:
+            import pandas as pd
+            df_forecast = pd.DataFrame()
+            
+        try:
+            df_abc = read_table(client_key, "abc_xyz_cache")
+        except Exception:
+            import pandas as pd
+            df_abc = pd.DataFrame()
+            
+        resultado = calcular_reposicao(df_produtos, df_estoque, df_forecast, df_abc)
+        
+        if not resultado.empty:
+            engine.save("estoque_reposicao_resultado", resultado)
+            salvar_reposicao_postgres(client_key, resultado)
+            
+        log.info(f"Reposição concluída para {client_key}: {len(resultado)} produtos na fila")
+        
+    except Exception as e:
+        log.error(f"[{client_key}] Erro fatal na fila de reposição: {e}")
+        raise e

@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/paulochiaradia/lume/collector/internal/normalizer"
 )
@@ -33,6 +33,7 @@ func (l *Loader) LoadVendas(vendas []normalizer.Venda) (int, error) {
 
 	tx, err := l.db.Begin()
 	if err != nil {
+		slog.Error("erro ao iniciar transacao para vendas", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao iniciar transação: %w", err)
 	}
 	defer tx.Rollback()
@@ -55,6 +56,7 @@ func (l *Loader) LoadVendas(vendas []normalizer.Venda) (int, error) {
 			atributos   = EXCLUDED.atributos
 	`, l.schema, l.schema))
 	if err != nil {
+		slog.Error("erro ao preparar statement de vendas", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao preparar statement: %w", err)
 	}
 	defer stmt.Close()
@@ -75,15 +77,30 @@ func (l *Loader) LoadVendas(vendas []normalizer.Venda) (int, error) {
 			atributos,
 		)
 		if err != nil {
-			log.Printf("aviso: erro ao inserir venda %s: %v", v.VendaKey, err)
+			// [SLOG] Loga o erro específico deste registro, mas permite que o lote continue
+			slog.Warn("erro ao inserir venda (registro ignorado)",
+				slog.String("event", "etl_load_venda_error"),
+				slog.String("tenant_id", l.clientKey),
+				slog.String("venda_key", v.VendaKey),
+				slog.String("error", err.Error()),
+			)
 			continue
 		}
 		count++
 	}
 
 	if err := tx.Commit(); err != nil {
+		slog.Error("erro ao commitar lote de vendas", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao commitar vendas: %w", err)
 	}
+
+	// [SLOG] Resumo de sucesso do batch
+	slog.Info("lote de vendas processado",
+		slog.String("event", "etl_load_vendas_success"),
+		slog.String("tenant_id", l.clientKey),
+		slog.Int("inseridos", count),
+		slog.Int("total_recebido", len(vendas)),
+	)
 
 	return count, nil
 }
@@ -96,6 +113,7 @@ func (l *Loader) LoadProdutos(produtos []normalizer.Produto) (int, error) {
 
 	tx, err := l.db.Begin()
 	if err != nil {
+		slog.Error("erro ao iniciar transacao para produtos", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao iniciar transação: %w", err)
 	}
 	defer tx.Rollback()
@@ -117,6 +135,7 @@ func (l *Loader) LoadProdutos(produtos []normalizer.Produto) (int, error) {
 			updated_at   = NOW()
 	`, l.schema))
 	if err != nil {
+		slog.Error("erro ao preparar statement de produtos", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao preparar statement: %w", err)
 	}
 	defer stmt.Close()
@@ -137,15 +156,28 @@ func (l *Loader) LoadProdutos(produtos []normalizer.Produto) (int, error) {
 			atributos,
 		)
 		if err != nil {
-			log.Printf("aviso: erro ao inserir produto %s: %v", p.ProdutoKey, err)
+			slog.Warn("erro ao inserir produto (registro ignorado)",
+				slog.String("event", "etl_load_produto_error"),
+				slog.String("tenant_id", l.clientKey),
+				slog.String("produto_key", p.ProdutoKey),
+				slog.String("error", err.Error()),
+			)
 			continue
 		}
 		count++
 	}
 
 	if err := tx.Commit(); err != nil {
+		slog.Error("erro ao commitar lote de produtos", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao commitar produtos: %w", err)
 	}
+
+	slog.Info("lote de produtos processado",
+		slog.String("event", "etl_load_produtos_success"),
+		slog.String("tenant_id", l.clientKey),
+		slog.Int("inseridos", count),
+		slog.Int("total_recebido", len(produtos)),
+	)
 
 	return count, nil
 }
@@ -158,6 +190,7 @@ func (l *Loader) LoadItensVenda(itens []normalizer.ItemVenda) (int, error) {
 
 	tx, err := l.db.Begin()
 	if err != nil {
+		slog.Error("erro ao iniciar transacao para itens_venda", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao iniciar transação: %w", err)
 	}
 	defer tx.Rollback()
@@ -173,6 +206,7 @@ func (l *Loader) LoadItensVenda(itens []normalizer.ItemVenda) (int, error) {
 		ON CONFLICT DO NOTHING
 	`, l.schema, l.schema))
 	if err != nil {
+		slog.Error("erro ao preparar statement de itens_venda", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao preparar statement de itens: %w", err)
 	}
 	defer stmt.Close()
@@ -193,15 +227,29 @@ func (l *Loader) LoadItensVenda(itens []normalizer.ItemVenda) (int, error) {
 			atributos,
 		)
 		if err != nil {
-			log.Printf("aviso: erro ao inserir item da venda %s: %v", item.VendaKey, err)
+			slog.Warn("erro ao inserir item da venda (registro ignorado)",
+				slog.String("event", "etl_load_item_venda_error"),
+				slog.String("tenant_id", l.clientKey),
+				slog.String("venda_key", item.VendaKey),
+				slog.String("produto_key", item.ProdutoKey),
+				slog.String("error", err.Error()),
+			)
 			continue
 		}
 		count++
 	}
 
 	if err := tx.Commit(); err != nil {
+		slog.Error("erro ao commitar lote de itens_venda", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao commitar itens: %w", err)
 	}
+
+	slog.Info("lote de itens de venda processado",
+		slog.String("event", "etl_load_itens_venda_success"),
+		slog.String("tenant_id", l.clientKey),
+		slog.Int("inseridos", count),
+		slog.Int("total_recebido", len(itens)),
+	)
 
 	return count, nil
 }
@@ -214,6 +262,7 @@ func (l *Loader) LoadClientes(clientes []normalizer.Cliente) (int, error) {
 
 	tx, err := l.db.Begin()
 	if err != nil {
+		slog.Error("erro ao iniciar transacao para clientes", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao iniciar transação: %w", err)
 	}
 	defer tx.Rollback()
@@ -231,6 +280,7 @@ func (l *Loader) LoadClientes(clientes []normalizer.Cliente) (int, error) {
 			updated_at = NOW()
 	`, l.schema))
 	if err != nil {
+		slog.Error("erro ao preparar statement de clientes", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao preparar statement de clientes: %w", err)
 	}
 	defer stmt.Close()
@@ -252,15 +302,28 @@ func (l *Loader) LoadClientes(clientes []normalizer.Cliente) (int, error) {
 			atributos,
 		)
 		if err != nil {
-			log.Printf("aviso: erro ao inserir cliente %s: %v", c.ClienteKey, err)
+			slog.Warn("erro ao inserir cliente (registro ignorado)",
+				slog.String("event", "etl_load_cliente_error"),
+				slog.String("tenant_id", l.clientKey),
+				slog.String("cliente_key", c.ClienteKey),
+				slog.String("error", err.Error()),
+			)
 			continue
 		}
 		count++
 	}
 
 	if err := tx.Commit(); err != nil {
+		slog.Error("erro ao commitar lote de clientes", slog.String("tenant_id", l.clientKey), slog.String("error", err.Error()))
 		return 0, fmt.Errorf("erro ao commitar clientes: %w", err)
 	}
+
+	slog.Info("lote de clientes processado",
+		slog.String("event", "etl_load_clientes_success"),
+		slog.String("tenant_id", l.clientKey),
+		slog.Int("inseridos", count),
+		slog.Int("total_recebido", len(clientes)),
+	)
 
 	return count, nil
 }

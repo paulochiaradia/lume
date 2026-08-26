@@ -60,7 +60,27 @@ def run_analytics_for_client(client_key: str):
             engine.save("forecast_resultado", df_forecast)
             resumo = get_forecast_resumo(df_forecast, dias=30)
             engine.save("forecast_resumo", resumo)
-            log.info(f"{client_key}: Forecast salvo")
+            log.info(f"{client_key}: Forecast salvo")   
+
+        # ── Estoque Reposição ────────────────────────────────
+        log.info(f"{client_key}: calculando Reposição de Estoque...")
+        from core.algorithms.estoque_reposicao import calcular_reposicao, salvar_reposicao_postgres
+        from core.db.postgres import read_table
+        
+        try:
+            df_produtos_est = engine.get_produtos()
+            df_estoque_fisico = read_table(client_key, "estoque")
+            
+            df_reposicao = calcular_reposicao(df_produtos_est, df_estoque_fisico, df_forecast, df_abc)
+            
+            if not df_reposicao.empty:
+                engine.save("estoque_reposicao_resultado", df_reposicao)
+                salvar_reposicao_postgres(client_key, df_reposicao)
+                log.info(f"{client_key}: Reposição salva — {len(df_reposicao)} itens na fila")
+            else:
+                log.info(f"{client_key}: Fila de reposição vazia.")
+        except Exception as e_est:
+            log.error(f"{client_key}: Erro ao calcular reposição — {e_est}")
 
         # ── Anomalias ─────────────────────────────────────────
         log.info(f"{client_key}: calculando Anomalias...")
