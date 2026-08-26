@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 10s # De quanto em quanto tempo ele vai coletar as métricas
+  evaluation_interval: 10s
+
+scrape_configs:
+  # Job para monitorar a sua API Lume
+  - job_name: 'lume_api'
+    metrics_path: '/api/v1/metrics'
+    static_configs:
+      - targets: ['collector:8080'] 
+
+  # Job para o Prometheus monitorar a si mesmo (boa prática)
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

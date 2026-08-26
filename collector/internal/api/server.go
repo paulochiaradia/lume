@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/paulochiaradia/lume/collector/internal/mailer"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -100,6 +101,7 @@ func (s *Server) setupRouter() *chi.Mux {
 	r.Route("/api/v1", func(r chi.Router) {
 		// Health — público, sem auth
 		r.Get("/health", s.handleHealth)
+		r.Handle("/metrics", promhttp.Handler()) // Prometheus scrape endpoint
 
 		// Auth — sem JWT, mas com proteção rígida contra Força Bruta (10 req/min)
 		r.With(limiter.Strict).Post("/auth/login", s.handleLogin)

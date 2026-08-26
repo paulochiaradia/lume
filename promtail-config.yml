@@ -1,0 +1,23 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  # Nome novo de novo, para forçar ele a ler tudo do zero sem memória de vidas passadas
+  filename: /tmp/positions_bypass.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: bypass_docker_api
+    pipeline_stages:
+      # Esse cara limpa a formatação "suja" que o Docker coloca no arquivo de texto
+      - docker: {}
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          # Aqui nós mandamos ele ler os arquivos diretamente do Linux, ignorando o Windows!
+          __path__: /var/lib/docker/containers/*/*-json.log

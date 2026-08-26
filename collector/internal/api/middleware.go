@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -79,7 +80,22 @@ func (rl *RateLimiter) Global(next http.Handler) http.Handler {
 		// Limite de 100 requisições por minuto conforme a auditoria
 		allowed, err := rl.checkRate(r.Context(), key, 100, time.Minute)
 
-		if err != nil || !allowed {
+		if err != nil {
+			// Se o Redis falhar, por segurança não derrubamos o usuário, mas logamos o erro
+			slog.Error("falha ao verificar rate limit no redis", slog.String("error", err.Error()), slog.String("ip", ip))
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if !allowed {
+			// [SLOG] Telemetria de Rate Limit atingido (Global)
+			slog.Warn("rate limit global atingido",
+				slog.String("event", "rate_limit_hit"),
+				slog.String("scope", "global"),
+				slog.String("ip", ip),
+				slog.String("route", r.URL.Path),
+			)
+
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
 			w.Write([]byte(`{"message":"Muitas requisições, tente novamente mais tarde"}`))
@@ -99,7 +115,22 @@ func (rl *RateLimiter) Strict(next http.Handler) http.Handler {
 		// Limite estrito de 10 requisições por minuto contra força bruta
 		allowed, err := rl.checkRate(r.Context(), key, 10, time.Minute)
 
-		if err != nil || !allowed {
+		if err != nil {
+			slog.Error("falha ao verificar rate limit strict no redis", slog.String("error", err.Error()), slog.String("ip", ip))
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if !allowed {
+			// [SLOG] Telemetria de Rate Limit estrito atingido (Rota de Login/Auth)
+			// Marcamos como WARN pois indica forte indício de tentativa de força bruta ou bot.
+			slog.Warn("rate limit strict atingido em rota critica",
+				slog.String("event", "rate_limit_strict_hit"),
+				slog.String("scope", "strict_auth"),
+				slog.String("ip", ip),
+				slog.String("route", r.URL.Path),
+			)
+
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
 			w.Write([]byte(`{"message":"Múltiplas tentativas falhas. Bloqueio temporário ativo."}`))

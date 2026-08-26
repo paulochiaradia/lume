@@ -1,18 +1,33 @@
 package normalizer
 
 import (
+	"fmt"
+	"log/slog"
+
 	"github.com/paulochiaradia/lume/collector/internal/connector"
 )
 
 func NormalizeClientes(records []connector.RawRecord) ([]Cliente, []string) {
 	var clientes []Cliente
 	var errors []string
+	skipped := 0
 
-	for _, record := range records {
+	for i, record := range records {
 		clienteKey := safeGet(record,
 			"id", "codigo", "cliente_id", "id_cliente",
 		)
+
+		// Detecção de anomalia na qualidade dos dados (Falta de Chave Primária)
 		if clienteKey == "" {
+			skipped++
+			errMsg := fmt.Sprintf("linha %d ignorada: chave do cliente não encontrada", i+1)
+			errors = append(errors, errMsg)
+
+			// [SLOG] Telemetria de descarte de dados
+			slog.Warn("registro de cliente ignorado por falta de id",
+				slog.String("event", "normalize_cliente_skipped"),
+				slog.Int("row_index", i),
+			)
 			continue
 		}
 
@@ -35,6 +50,14 @@ func NormalizeClientes(records []connector.RawRecord) ([]Cliente, []string) {
 
 		clientes = append(clientes, cliente)
 	}
+
+	// [SLOG] Resumo final do processo de normalização do lote
+	slog.Info("normalizacao de clientes concluida",
+		slog.String("event", "normalize_clientes_success"),
+		slog.Int("total_recebido", len(records)),
+		slog.Int("normalizados", len(clientes)),
+		slog.Int("ignorados", skipped),
+	)
 
 	return clientes, errors
 }
